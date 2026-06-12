@@ -42,8 +42,8 @@ function StepBar({ current }: { current: number }) {
                   done
                     ? "border-indigo-600 bg-indigo-600 text-white"
                     : active
-                      ? "border-indigo-600 bg-white text-indigo-600"
-                      : "border-slate-200 bg-white text-slate-400",
+                      ? "border-indigo-600 bg-white text-indigo-600 dark:bg-zinc-900"
+                      : "border-slate-200 bg-white text-slate-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500",
                 ].join(" ")}
               >
                 {done ? (
@@ -63,7 +63,9 @@ function StepBar({ current }: { current: number }) {
               <span
                 className={[
                   "text-xs whitespace-nowrap",
-                  active ? "text-indigo-700 font-medium" : "text-slate-400",
+                  active
+                    ? "text-indigo-700 font-medium dark:text-indigo-300"
+                    : "text-slate-400 dark:text-zinc-500",
                 ].join(" ")}
               >
                 {label}
@@ -73,7 +75,7 @@ function StepBar({ current }: { current: number }) {
               <div
                 className={[
                   "mx-3 mb-4 h-px w-12 transition-colors",
-                  done ? "bg-indigo-400" : "bg-slate-200",
+                  done ? "bg-indigo-400" : "bg-slate-200 dark:bg-zinc-700",
                 ].join(" ")}
               />
             )}
@@ -104,8 +106,7 @@ function validateMeta(meta: MetaForm): MetaErrors {
   if (!DOC_TYPE_RE.test(meta.documentType))
     e.documentType =
       "Lowercase letters, digits, and underscores only (1–60 characters).";
-  if (!meta.documentName.trim())
-    e.documentName = "Document name is required.";
+  if (!meta.documentName.trim()) e.documentName = "Document name is required.";
   if (meta.countryIso && !COUNTRY_ISO_RE.test(meta.countryIso))
     e.countryIso = "Must be exactly 3 uppercase letters (ISO alpha-3).";
   const edition = Number(meta.edition);
@@ -251,12 +252,18 @@ export default function NewTemplatePage() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10 space-y-8">
+    <div
+      className={[
+        "mx-auto px-4 py-10 space-y-8",
+        // The review step uses a two-column layout, so it needs more width.
+        step === 1 ? "max-w-5xl" : "max-w-2xl",
+      ].join(" ")}
+    >
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-zinc-50">
           New template
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
           Upload a reference image, review the detected fields, and confirm.
         </p>
       </div>
@@ -291,10 +298,10 @@ export default function NewTemplatePage() {
               "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed",
               "cursor-pointer px-6 py-12 text-center transition-colors",
               dragOver
-                ? "border-indigo-400 bg-indigo-50"
+                ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30"
                 : file
-                  ? "border-indigo-300 bg-indigo-50/50"
-                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
+                  ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-800 dark:bg-indigo-950/20"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800",
             ].join(" ")}
           >
             {file ? (
@@ -319,10 +326,10 @@ export default function NewTemplatePage() {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <p className="text-sm font-medium text-indigo-700">
+                <p className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
                   {file.name}
                 </p>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 dark:text-zinc-500">
                   {(file.size / 1024).toFixed(0)} KB · Click to change
                 </p>
               </>
@@ -331,7 +338,7 @@ export default function NewTemplatePage() {
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
-                  className="h-8 w-8 text-slate-300"
+                  className="h-8 w-8 text-slate-300 dark:text-zinc-600"
                   aria-hidden
                 >
                   <path
@@ -351,13 +358,13 @@ export default function NewTemplatePage() {
                     strokeWidth="1.5"
                   />
                 </svg>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-zinc-400">
                   Drag an image or{" "}
-                  <span className="text-indigo-600 underline">
+                  <span className="text-indigo-600 underline dark:text-indigo-400">
                     select a file
                   </span>
                 </p>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 dark:text-zinc-500">
                   PNG, JPG or JPEG · max. 10 MB
                 </p>
               </>
@@ -376,7 +383,7 @@ export default function NewTemplatePage() {
           />
 
           {generateError && (
-            <p className="rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600">
+            <p className="rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
               {generateError}
             </p>
           )}
@@ -389,7 +396,7 @@ export default function NewTemplatePage() {
               "w-full rounded-lg py-2.5 text-sm font-medium text-white transition-colors",
               "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
               !file || generating
-                ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                ? "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
                 : "bg-indigo-600 hover:bg-indigo-700",
             ].join(" ")}
           >
@@ -405,17 +412,17 @@ export default function NewTemplatePage() {
         <section className="space-y-6">
           {/* Preclass info banner */}
           {generate.preclass.doc_family && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 flex flex-wrap gap-x-4 gap-y-1 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
               <span>
                 Family:{" "}
-                <strong className="text-slate-800">
+                <strong className="text-slate-800 dark:text-zinc-100">
                   {generate.preclass.doc_family}
                 </strong>
               </span>
               {generate.preclass.country_iso && (
                 <span>
                   Country ISO:{" "}
-                  <strong className="text-slate-800">
+                  <strong className="text-slate-800 dark:text-zinc-100">
                     {generate.preclass.country_iso}
                   </strong>
                 </span>
@@ -423,7 +430,7 @@ export default function NewTemplatePage() {
               {generate.preclass.mrz_type && (
                 <span>
                   MRZ:{" "}
-                  <strong className="text-slate-800">
+                  <strong className="text-slate-800 dark:text-zinc-100">
                     {generate.preclass.mrz_type}
                   </strong>
                 </span>
@@ -431,7 +438,7 @@ export default function NewTemplatePage() {
               {generate.preclass.confidence != null && (
                 <span>
                   Confidence:{" "}
-                  <strong className="text-slate-800">
+                  <strong className="text-slate-800 dark:text-zinc-100">
                     {(generate.preclass.confidence * 100).toFixed(0)}%
                   </strong>
                 </span>
@@ -439,73 +446,94 @@ export default function NewTemplatePage() {
             </div>
           )}
 
-          {/* Suggestions */}
-          <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-              Detected suggestions
-            </h2>
-            <SuggestionList
-              suggestions={generate.suggestions}
-              onSelectionChange={setAccepted}
-            />
+          {/* Two columns: fields on the left, reference image on the right. */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(0,420px)]">
+            {/* Left column — suggestions + manual fields */}
+            <div className="space-y-6">
+              {/* Suggestions */}
+              <div className="space-y-2">
+                <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide dark:text-zinc-300">
+                  Detected suggestions
+                </h2>
+                <SuggestionList
+                  suggestions={generate.suggestions}
+                  onSelectionChange={setAccepted}
+                />
+              </div>
+
+              {/* Manual fields list */}
+              {manual.length > 0 && (
+                <div className="space-y-2">
+                  <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide dark:text-zinc-300">
+                    Manual fields
+                  </h2>
+                  <ul className="space-y-1.5">
+                    {manual.map((f) => (
+                      <li
+                        key={f.key}
+                        className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900"
+                      >
+                        <div>
+                          <span className="text-sm font-medium text-slate-800 dark:text-zinc-100">
+                            {f.label}
+                          </span>
+                          <span className="ml-2 font-mono text-xs text-slate-400 dark:text-zinc-500">
+                            {f.key}
+                          </span>
+                          <span className="ml-2 text-xs text-slate-400 dark:text-zinc-500">
+                            · {f.type}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setManual((prev) =>
+                              prev.filter((x) => x.key !== f.key),
+                            )
+                          }
+                          className="ml-4 text-slate-300 hover:text-red-400 transition-colors dark:text-zinc-600"
+                          aria-label={`Remove field ${f.key}`}
+                        >
+                          <svg
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            className="h-4 w-4"
+                          >
+                            <path
+                              d="M3 8h10"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Add field form */}
+              <AddFieldForm
+                existingKeys={existingKeys}
+                onAdd={(f) => setManual((prev) => [...prev, f])}
+              />
+            </div>
+
+            {/* Right column — reference image (sticky while scrolling) */}
+            <div className="lg:sticky lg:top-4 lg:self-start">
+              <img
+                src={URL.createObjectURL(file!)}
+                alt="Reference document"
+                className="w-full rounded-lg border border-slate-200 shadow-sm dark:border-zinc-800"
+              />
+            </div>
           </div>
 
-          {/* Manual fields list */}
-          {manual.length > 0 && (
-            <div className="space-y-2">
-              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                Manual fields
-              </h2>
-              <ul className="space-y-1.5">
-                {manual.map((f) => (
-                  <li
-                    key={f.key}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5"
-                  >
-                    <div>
-                      <span className="text-sm font-medium text-slate-800">
-                        {f.label}
-                      </span>
-                      <span className="ml-2 font-mono text-xs text-slate-400">
-                        {f.key}
-                      </span>
-                      <span className="ml-2 text-xs text-slate-400">
-                        · {f.type}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setManual((prev) => prev.filter((x) => x.key !== f.key))
-                      }
-                      className="ml-4 text-slate-300 hover:text-red-400 transition-colors"
-                      aria-label={`Remove field ${f.key}`}
-                    >
-                      <svg viewBox="0 0 16 16" fill="none" className="h-4 w-4">
-                        <path
-                          d="M3 8h10"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Add field form */}
-          <AddFieldForm
-            existingKeys={existingKeys}
-            onAdd={(f) => setManual((prev) => [...prev, f])}
-          />
-
           {/* Summary + advance */}
-          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-            <p className="text-sm text-slate-500">
-              <span className="font-medium text-slate-700">
+          <div className="flex items-center justify-between border-t border-slate-100 pt-4 dark:border-zinc-800">
+            <p className="text-sm text-slate-500 dark:text-zinc-400">
+              <span className="font-medium text-slate-700 dark:text-zinc-200">
                 {allFields.length}
               </span>{" "}
               field
@@ -515,7 +543,7 @@ export default function NewTemplatePage() {
               <button
                 type="button"
                 onClick={() => setStep(0)}
-                className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+                className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors dark:text-zinc-400 dark:hover:text-zinc-100"
               >
                 Back
               </button>
@@ -527,7 +555,7 @@ export default function NewTemplatePage() {
                   "rounded-lg px-5 py-2 text-sm font-medium text-white transition-colors",
                   "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
                   allFields.length === 0
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
                     : "bg-indigo-600 hover:bg-indigo-700",
                 ].join(" ")}
               >
@@ -543,7 +571,7 @@ export default function NewTemplatePage() {
       {/* ------------------------------------------------------------------ */}
       {step === 2 && (
         <section className="space-y-5">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-zinc-400">
             Fill in the template details. The <strong>type</strong>,{" "}
             <strong>edition</strong>, and <strong>country ISO</strong> form the
             unique identifier on the server.
@@ -627,15 +655,15 @@ export default function NewTemplatePage() {
           </div>
 
           {/* Fields summary (read-only) */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-1">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-1 dark:border-zinc-800 dark:bg-zinc-900">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-zinc-400">
               Fields to save ({allFields.length})
             </p>
             <div className="flex flex-wrap gap-1.5 pt-1">
               {allFields.map((f) => (
                 <span
                   key={f.key}
-                  className="rounded-md bg-white border border-slate-200 px-2 py-0.5 font-mono text-xs text-slate-600"
+                  className="rounded-md bg-white border border-slate-200 px-2 py-0.5 font-mono text-xs text-slate-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 >
                   {f.key}
                 </span>
@@ -644,16 +672,16 @@ export default function NewTemplatePage() {
           </div>
 
           {confirmError && (
-            <p className="rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600">
+            <p className="rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
               {confirmError}
             </p>
           )}
 
-          <div className="flex justify-between border-t border-slate-100 pt-4">
+          <div className="flex justify-between border-t border-slate-100 pt-4 dark:border-zinc-800">
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+              className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors dark:text-zinc-400 dark:hover:text-zinc-100"
             >
               Back
             </button>
@@ -665,7 +693,7 @@ export default function NewTemplatePage() {
                 "rounded-lg px-6 py-2 text-sm font-medium text-white transition-colors",
                 "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
                 confirming
-                  ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  ? "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
                   : "bg-indigo-600 hover:bg-indigo-700",
               ].join(" ")}
             >
@@ -695,14 +723,16 @@ function Field({
 }) {
   return (
     <div className="space-y-1">
-      <label className="text-xs font-medium text-slate-600">
+      <label className="text-xs font-medium text-slate-600 dark:text-zinc-300">
         {label}
         {hint && (
-          <span className="ml-1 font-normal text-slate-400">({hint})</span>
+          <span className="ml-1 font-normal text-slate-400 dark:text-zinc-500">
+            ({hint})
+          </span>
         )}
       </label>
       {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
     </div>
   );
 }
@@ -710,7 +740,10 @@ function Field({
 function inputCls(hasError: boolean) {
   return [
     "w-full rounded-md border px-3 py-1.5 text-sm",
+    "text-slate-900 placeholder:text-slate-400 dark:text-zinc-100 dark:placeholder:text-zinc-500",
     "focus:outline-none focus:ring-2 focus:ring-indigo-500",
-    hasError ? "border-red-300 bg-red-50" : "border-slate-200 bg-white",
+    hasError
+      ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30"
+      : "border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-900",
   ].join(" ");
 }
