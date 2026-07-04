@@ -24,6 +24,8 @@ const SOURCE_LABELS: Record<string, string> = {
   mrz: "MRZ",
   regex: "Regex",
   spatial_match: "Spatial",
+  vlm: "VLM",
+  llm_pairer: "LLM",
 };
 
 function suggestionToField(s: FieldSuggestion): TemplateField {
@@ -53,7 +55,9 @@ export function SuggestionList({
   const [selected, setSelected] = useState<Set<string>>(
     () =>
       new Set(
-        suggestions.filter((s) => s.confidence === "high").map((s) => s.key),
+        suggestions
+          .filter((s) => s.confidence === "high" || s.source === "llm_pairer")
+          .map((s) => s.key),
       ),
   );
 

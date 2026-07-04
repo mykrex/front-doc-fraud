@@ -156,9 +156,7 @@ export async function listTemplates(
 }
 
 /** GET /v1/templates/{id} — template detail (404 if not found). */
-export async function getTemplate(
-  templateId: string,
-): Promise<TemplateDetail> {
+export async function getTemplate(templateId: string): Promise<TemplateDetail> {
   try {
     const res = await client.get<TemplateDetail>(
       `/templates/${encodeURIComponent(templateId)}`,
@@ -170,8 +168,110 @@ export async function getTemplate(
 }
 
 /**
+ * Read a generate SSE stream to completion and return the parsed GenerateResponse.
+ * Caller must provide an already-successful Response object (res.ok === true).
+ *
+ * Protocol:
+ *   ": keepalive"        → heartbeat, ignore
+ *   "event: error\ndata: {...}" → server error, throw ApiError
+ *   "data: {...}"        → JSON payload
+ *   "data: [DONE]"       → stream complete, return last payload
+ */
+async function readGenerateSSE(res: Response): Promise<GenerateResponse> {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let payload: GenerateResponse | null = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    // SSE events are delimited by blank lines (\n\n). Splitting on "\n" instead
+    // breaks multi-line events like "event: error\ndata: {...}" — the event type
+    // and data end up in separate iterations with no shared context.
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      let eventType = "message";
+      let data: string | null = null;
+
+      for (const line of chunk.split("\n")) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith("data: ")) {
+          data = line.slice(6);
+        }
+        // lines starting with ":" are keepalive comments — ignore
+      }
+
+      if (data === null) continue;
+
+      if (eventType === "error") {
+        const body = JSON.parse(data) as { detail?: string };
+        throw new ApiError(body.detail ?? "Processing error from server", 0);
+      }
+
+      if (data === "[DONE]") {
+        if (!payload) throw new ApiError("Stream ended without a result", 0);
+        return payload;
+      }
+
+      payload = JSON.parse(data) as GenerateResponse;
+    }
+  }
+
+  if (!payload) throw new ApiError("Empty response from server", 0);
+  return payload;
+}
+
+/**
+ * Issue a fetch POST to /v1/templates/generate with an AbortController timeout.
+ * Returns the raw Response if successful; throws ApiError on network/timeout/HTTP errors.
+ */
+async function postGenerateWithTimeout(
+  form: FormData,
+  timeoutMs: number,
+  timeoutMessage: string,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/v1/templates/generate`, {
+      method: "POST",
+      body: form,
+      credentials: "include",
+      signal: controller.signal,
+    });
+  } catch (fetchErr) {
+    if ((fetchErr as Error).name === "AbortError") {
+      throw new ApiError(timeoutMessage, 0);
+    }
+    throw new ApiError((fetchErr as Error).message ?? "Network error", 0);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new ApiError(
+      friendlyStatusMessage(res.status) ?? `HTTP ${res.status}`,
+      res.status,
+      data,
+    );
+  }
+  return res;
+}
+
+/**
  * POST /v1/templates/generate — step 1: OCR a document & suggest fields.
  * No persistence; returns a short-lived generate_id to reuse in confirm.
+ *
+ * mode=manual and mode=dots both use fetch + SSE stream reader.
+ * mode=auto uses axios (plain JSON response).
  */
 export async function generateTemplate(
   req: GenerateRequest,
@@ -179,11 +279,29 @@ export async function generateTemplate(
   const form = new FormData();
   form.append("image", req.image);
   form.append("mode", req.mode);
+
   if (req.mode === "manual") {
-    // expected_fields is required in manual mode, sent as a JSON string.
-    form.append("expected_fields", JSON.stringify(req.expectedFields ?? []));
+    // OCR without VLM; allow up to 60 s for heavy documents.
+    const res = await postGenerateWithTimeout(
+      form,
+      60_000,
+      "Request timed out (60 s). Please try again.",
+    );
+    return readGenerateSSE(res);
   }
 
+  if (req.mode === "dots") {
+    // DotsOCR VLM can take up to ~2 min on first load; LLM pairer adds up to 45 s.
+    // Guide specifies 180 s — do not lower this.
+    const res = await postGenerateWithTimeout(
+      form,
+      180_000,
+      "Request timed out (180 s). The VLM may still be processing — please try again.",
+    );
+    return readGenerateSSE(res);
+  }
+
+  // auto mode — plain JSON response via axios
   try {
     const res = await client.post<GenerateResponse>(
       "/templates/generate",
@@ -196,6 +314,41 @@ export async function generateTemplate(
 }
 
 /**
+ * GET /v1/templates/session/{generate_id}/image
+ * Returns an Object URL for the preprocessed image used by the OCR engine.
+ * The caller is responsible for calling URL.revokeObjectURL() when done.
+ *
+ * Returns 404 after confirm, on session expiry, or for mode=auto sessions.
+ */
+export async function fetchSessionImage(generateId: string): Promise<string> {
+  const url = `${BASE_URL}/v1/templates/session/${encodeURIComponent(generateId)}/image`;
+  let res: Response;
+  try {
+    res = await fetch(url, { credentials: "include" });
+  } catch (fetchErr) {
+    throw new ApiError((fetchErr as Error).message ?? "Network error", 0);
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    const detail =
+      typeof data === "object" && data !== null && "detail" in data
+        ? String((data as { detail: unknown }).detail)
+        : null;
+    throw new ApiError(
+      detail ??
+        friendlyStatusMessage(res.status) ??
+        `Could not load the preprocessed image (HTTP ${res.status}).`,
+      res.status,
+      data,
+    );
+  }
+
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
+/**
  * POST /v1/templates/confirm — step 2: persist the reviewed template.
  * Returns the saved TemplateDetail (201). Pass generate_id to also store the
  * cached sample image alongside the template.
@@ -204,10 +357,7 @@ export async function confirmTemplate(
   body: ConfirmTemplateRequest,
 ): Promise<TemplateDetail> {
   try {
-    const res = await client.post<TemplateDetail>(
-      "/templates/confirm",
-      body,
-    );
+    const res = await client.post<TemplateDetail>("/templates/confirm", body);
     return res.data;
   } catch (err) {
     throw toApiError(err);

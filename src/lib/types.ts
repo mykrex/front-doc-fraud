@@ -86,6 +86,8 @@ export interface TemplateField {
   label: string;
   type: FieldType; // default "text"; validated server-side
   category?: string | null;
+  label_element_ids?: number[]; // element IDs used as label (manual/dots mode)
+  value_element_ids?: number[]; // element IDs used as value (manual/dots mode)
 }
 
 export interface TemplateSummary {
@@ -126,9 +128,20 @@ export interface TemplateListParams {
 // Template generation (step 1: generate → step 2: confirm)
 // ---------------------------------------------------------------------------
 
-export type GenerateMode = "auto" | "manual";
+export type GenerateMode = "auto" | "manual" | "dots";
 
 // expected_fields entries when calling generate in "manual" mode.
+
+// OCR element returned by the dots mode — one detected text block with a
+// normalized bounding box (0.0–1.0 relative to image_dims).
+export interface OCRElement {
+  id: number;
+  text: string;
+  category: string;
+  role: "label" | "value" | "unknown";
+  bbox: { x1: number; y1: number; x2: number; y2: number };
+}
+
 export interface ExpectedField {
   key: string;
   label: string;
@@ -147,15 +160,15 @@ export interface OCRLine {
 }
 
 export type SuggestionConfidence = "high" | "medium" | "low";
-export type SuggestionSource = "mrz" | "regex" | "spatial_match";
+export type SuggestionSource = "mrz" | "regex" | "spatial_match" | "vlm" | "llm_pairer";
 
 export interface FieldSuggestion {
   key: string;
   label: string;
   type: string;
   value_preview?: string | null;
-  label_line_id?: number | null; // → OCRLine.id of the label
-  value_line_ids: number[]; // → OCRLine.id(s) of the value
+  label_element_id?: number | null; // → OCRElement.id of the label
+  value_element_ids: number[]; // → OCRElement.id(s) of the value
   confidence: SuggestionConfidence;
   source: SuggestionSource;
 }
@@ -173,16 +186,19 @@ export interface GenerateResponse {
   image_dims: [number, number]; // [width, height] in pixels
   preclass: Preclass;
   qr_config: Record<string, unknown>;
-  ocr_lines: OCRLine[]; // every detected line + its box
+  ocr_lines: OCRLine[]; // every detected line + its box (auto/manual modes)
   mrz_fields?: Record<string, unknown> | null; // decoded MRZ, if present
   suggestions: FieldSuggestion[];
   anchors_candidates: string[];
+  ocr_elements?: OCRElement[];    // dots mode: all detected text blocks with normalized bboxes
+  label_elements?: OCRElement[];  // dots mode: subset with role="label"
+  value_elements?: OCRElement[];  // dots mode: subset with role="value"
 }
 
 export interface GenerateRequest {
   image: File; // required
   mode: GenerateMode; // required
-  expectedFields?: ExpectedField[]; // required when mode === "manual"
+  expectedFields?: ExpectedField[]; // unused in manual mode; kept for compatibility
 }
 
 export interface ConfirmTemplateRequest {
