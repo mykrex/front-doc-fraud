@@ -468,7 +468,7 @@ export default function NewTemplatePage() {
                   </span>
                 </p>
                 <p className="text-xs text-slate-400 dark:text-zinc-500">
-                  PNG, JPG or JPEG · max. 10 MB
+                  PNG, JPG, JPEG or PDF · max. 10 MB
                 </p>
               </>
             )}
@@ -477,7 +477,7 @@ export default function NewTemplatePage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".png,.jpg,.jpeg"
+            accept=".png,.jpg,.jpeg,.pdf"
             className="sr-only"
             onChange={(e) => {
               const f = e.target.files?.[0];
