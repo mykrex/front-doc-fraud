@@ -181,6 +181,10 @@ export default function NewTemplatePage() {
     string | null
   >(null);
   const [manualFields, setManualFields] = useState<TemplateField[]>([]);
+  const [manualAnchors, setManualAnchors] = useState<string[]>([]);
+  const [manualImageRegions, setManualImageRegions] = useState<
+    { x1: number; y1: number; x2: number; y2: number }[]
+  >([]);
 
   // Session expiry countdown (updates every second)
   const [expiryCountdown, setExpiryCountdown] = useState<string>("");
@@ -230,6 +234,8 @@ export default function NewTemplatePage() {
       setPreprocessedImageUrl(null);
     }
     setManualFields([]);
+    setManualAnchors([]);
+    setManualImageRegions([]);
 
     try {
       const data = await generateTemplate({ image: file, mode: "manual" });
@@ -258,6 +264,8 @@ export default function NewTemplatePage() {
       setPreprocessedImageUrl(null);
     }
     setManualFields([]);
+    setManualAnchors([]);
+    setManualImageRegions([]);
     setStep(0);
   }
 
@@ -307,7 +315,8 @@ export default function NewTemplatePage() {
       doc_family: generate.preclass.doc_family ?? null,
       mrz_type: generate.preclass.mrz_type ?? null,
       fields: manualFields,
-      anchors: [],
+      anchors: manualAnchors,
+      image_regions: manualImageRegions,
       fingerprint: {},
       field_rules: {},
       qr_config: generate.qr_config,
@@ -563,6 +572,8 @@ export default function NewTemplatePage() {
             imageUrl={preprocessedImageUrl}
             ocrLines={generate.ocr_lines}
             onFieldsChange={setManualFields}
+            onAnchorsChange={setManualAnchors}
+            onImageRegionsChange={setManualImageRegions}
           />
 
           {/* Summary + navigation */}
@@ -615,6 +626,11 @@ export default function NewTemplatePage() {
             <span className="inline-flex items-center gap-1">
               <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 border-emerald-400 bg-emerald-300/30" />
               <span>Green = value</span>
+            </span>
+            {" · "}
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 border-dashed border-violet-500 bg-violet-300/20" />
+              <span>Violet = photo</span>
             </span>
             . Go back if something is wrong, or confirm to continue.
           </p>
@@ -705,9 +721,27 @@ export default function NewTemplatePage() {
                   </Fragment>
                 );
               })}
+
+              {/* Image region overlays */}
+              {manualImageRegions.map((r, i) => (
+                <div
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    left: `${r.x1 * 100}%`,
+                    top: `${r.y1 * 100}%`,
+                    width: `${(r.x2 - r.x1) * 100}%`,
+                    height: `${(r.y2 - r.y1) * 100}%`,
+                    border: "2px dashed #8b5cf6",
+                    backgroundColor: "rgba(139,92,246,0.10)",
+                    borderRadius: "3px",
+                    pointerEvents: "none",
+                  }}
+                />
+              ))}
             </div>
 
-            {/* Field list */}
+            {/* Field list + anchors + image regions */}
             <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
                 Fields ({manualFields.length})
@@ -739,6 +773,33 @@ export default function NewTemplatePage() {
                   );
                 })}
               </ul>
+
+              {manualAnchors.length > 0 && (
+                <div className="pt-2 space-y-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                    Anchors ({manualAnchors.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {manualAnchors.map((text, i) => (
+                      <span
+                        key={i}
+                        className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300"
+                      >
+                        {text}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {manualImageRegions.length > 0 && (
+                <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                  Photo regions:{" "}
+                  <span className="font-bold text-violet-600 dark:text-violet-400">
+                    {manualImageRegions.length}
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -849,21 +910,50 @@ export default function NewTemplatePage() {
             </Field>
           </div>
 
-          {/* Fields summary (read-only) */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-1 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-zinc-400">
-              Fields to save ({manualFields.length})
-            </p>
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {manualFields.map((f) => (
-                <span
-                  key={f.key}
-                  className="rounded-md bg-white border border-slate-200 px-2 py-0.5 font-mono text-xs text-slate-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                >
-                  {f.key}
-                </span>
-              ))}
+          {/* Summary (read-only) */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-3 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-zinc-400">
+                Fields to save ({manualFields.length})
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {manualFields.map((f) => (
+                  <span
+                    key={f.key}
+                    className="rounded-md bg-white border border-slate-200 px-2 py-0.5 font-mono text-xs text-slate-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                  >
+                    {f.key}
+                  </span>
+                ))}
+              </div>
             </div>
+
+            {manualAnchors.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-zinc-400">
+                  Anchors ({manualAnchors.length})
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {manualAnchors.map((text, i) => (
+                    <span
+                      key={i}
+                      className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300"
+                    >
+                      {text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {manualImageRegions.length > 0 && (
+              <p className="text-xs font-medium text-slate-500 dark:text-zinc-400">
+                Photo regions:{" "}
+                <span className="font-semibold text-violet-600 dark:text-violet-400">
+                  {manualImageRegions.length}
+                </span>
+              </p>
+            )}
           </div>
 
           {confirmError && (

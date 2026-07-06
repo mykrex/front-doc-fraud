@@ -7,17 +7,19 @@
 // Shows the preprocessed document image (from GET /session/{id}/image) with
 // clickable overlays for each OCR line detected by the backend.
 //
-// The user pairs one or more label lines with one or more value lines to create
-// a template field. Completed fields are shown as colored region overlays.
+// Interaction modes:
+//   "field"  — pair label + value OCR lines to create a template field
+//   "anchor" — mark fixed text elements (e.g. "PASAPORTE") as anchors
+//   "image"  — confirm/remove photo regions (pre-classified when role === "image")
 //
-// Pairing flow:
+// Field pairing flow (mode "field"):
 //   Phase "label" — click OCR lines to build the label element set
 //   Phase "value" — click OCR lines to build the value element set
 //                   "No visible label" copies label IDs to value IDs
 //   Add field      — enter key + label name, click Add
 // =============================================================================
 
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import type { OCRLine, TemplateField } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -60,15 +62,14 @@ function enclosingRect(ids: number[], ocrLines: OCRLine[]): Rect | null {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
+// Key helpers
 // ---------------------------------------------------------------------------
 
-/** Convert a human label to a snake_case key for the confirm payload. */
 function labelToKey(label: string): string {
   const raw = label
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // strip diacritics
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 55);
@@ -83,7 +84,21 @@ function generateKey(label: string, existingKeys: string[]): string {
   return `${base}_${n}`;
 }
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 type Phase = "label" | "value";
+type InteractionMode = "field" | "anchor" | "image";
+
+type LineVisual =
+  | "image_active"    // in imageIds (confirmed photo region)
+  | "image_discarded" // role === "image" but removed by user
+  | "anchor"          // in anchorIds
+  | "selected_label"
+  | "selected_value"
+  | "used"
+  | "available";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -95,6 +110,76 @@ interface ManualFieldMapperProps {
   /** OCR lines from GenerateResponse.ocr_lines — bboxes are relative to imageUrl. */
   ocrLines: OCRLine[];
   onFieldsChange: (fields: TemplateField[]) => void;
+  /** Called whenever the set of anchor texts changes. */
+  onAnchorsChange?: (anchors: string[]) => void;
+  /** Called whenever the set of image region bboxes changes. */
+  onImageRegionsChange?: (regions: Rect[]) => void;
+}
+
+// ---------------------------------------------------------------------------
+// Overlay className builder
+// ---------------------------------------------------------------------------
+
+function getOverlayCls(
+  visual: LineVisual,
+  clickable: boolean,
+  mode: InteractionMode,
+): string {
+  const base = "rounded transition-colors ";
+  switch (visual) {
+    case "image_active":
+      return (
+        base +
+        "border-2 border-dashed border-violet-500 bg-violet-400/10 " +
+        (clickable ? "cursor-pointer hover:bg-violet-400/20" : "cursor-default")
+      );
+    case "image_discarded":
+      return (
+        base +
+        "border border-dashed border-blue-300/50 opacity-40 " +
+        (clickable
+          ? "cursor-pointer hover:opacity-70 hover:border-violet-400"
+          : "cursor-default")
+      );
+    case "anchor":
+      return (
+        base +
+        "border-2 border-amber-500 bg-amber-400/15 " +
+        (clickable ? "cursor-pointer hover:bg-amber-400/25" : "cursor-default")
+      );
+    case "selected_label":
+      return (
+        base +
+        "border-2 border-blue-500 bg-blue-400/25 cursor-pointer ring-1 ring-blue-400"
+      );
+    case "selected_value":
+      return (
+        base +
+        "border-2 border-emerald-500 bg-emerald-400/25 cursor-pointer ring-1 ring-emerald-400"
+      );
+    case "used":
+      return (
+        base +
+        "border border-slate-300/40 bg-slate-100/10 opacity-40 cursor-default"
+      );
+    case "available":
+      if (!clickable)
+        return base + "border border-slate-200/20 opacity-20 cursor-default";
+      if (mode === "anchor")
+        return (
+          base +
+          "border border-slate-300/60 hover:border-amber-400 hover:bg-amber-100/15 cursor-pointer"
+        );
+      if (mode === "image")
+        return (
+          base +
+          "border border-slate-300/60 hover:border-violet-400 hover:bg-violet-100/15 cursor-pointer"
+        );
+      return (
+        base +
+        "border border-slate-300/60 hover:border-blue-400 hover:bg-blue-100/15 cursor-pointer"
+      );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -105,7 +190,14 @@ export function ManualFieldMapper({
   imageUrl,
   ocrLines,
   onFieldsChange,
+  onAnchorsChange,
+  onImageRegionsChange,
 }: ManualFieldMapperProps) {
+  // ---- interaction mode ----
+  const [interactionMode, setInteractionMode] =
+    useState<InteractionMode>("field");
+
+  // ---- field mapping state ----
   const [phase, setPhase] = useState<Phase>("label");
   const [pendingLabelIds, setPendingLabelIds] = useState<number[]>([]);
   const [pendingValueIds, setPendingValueIds] = useState<number[]>([]);
@@ -114,7 +206,27 @@ export function ManualFieldMapper({
   const [form, setForm] = useState({ label: "" });
   const [formErrors, setFormErrors] = useState<{ label?: string }>({});
 
-  // IDs already committed to a completed field — cannot be re-selected
+  // ---- anchor + image region state ----
+  const [anchorIds, setAnchorIds] = useState<Set<number>>(new Set());
+  const [imageIds, setImageIds] = useState<Set<number>>(() =>
+    new Set(ocrLines.filter((l) => l.role === "image").map((l) => l.id)),
+  );
+
+  // Report pre-classified image regions once on mount so the parent starts
+  // with the correct state even if the user never touches the image-mode panel.
+  useEffect(() => {
+    if (imageIds.size === 0) return;
+    const regions = [...imageIds].flatMap((id) => {
+      const l = ocrLines.find((ll) => ll.id === id);
+      return l ? [polyToRect(l.bbox)] : [];
+    });
+    onImageRegionsChange?.(regions);
+    // intentionally runs once on mount; imageIds is stable at this point
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- derived sets ----
+
   const usedIds = useMemo(() => {
     const ids = new Set<number>();
     for (const f of fields) {
@@ -126,19 +238,79 @@ export function ManualFieldMapper({
 
   const existingKeys = useMemo(() => fields.map((f) => f.key), [fields]);
 
-  // Precomputed rect for each OCR line (avoid recomputing during render)
   const lineRectMap = useMemo(() => {
     const m = new Map<number, Rect>();
     ocrLines.forEach((l) => m.set(l.id, polyToRect(l.bbox)));
     return m;
   }, [ocrLines]);
 
+  const anchorTexts = useMemo(
+    () =>
+      [...anchorIds]
+        .map((id) => ocrLines.find((l) => l.id === id)?.text ?? "")
+        .filter(Boolean),
+    [anchorIds, ocrLines],
+  );
+
   // ---------------------------------------------------------------------------
-  // Interaction handlers
+  // Anchor / image region toggles
+  // ---------------------------------------------------------------------------
+
+  function toggleAnchor(lineId: number) {
+    const next = new Set(anchorIds);
+    if (next.has(lineId)) next.delete(lineId);
+    else next.add(lineId);
+    setAnchorIds(next);
+    const texts = [...next]
+      .map((id) => ocrLines.find((l) => l.id === id)?.text ?? "")
+      .filter(Boolean);
+    onAnchorsChange?.(texts);
+  }
+
+  function toggleImageRegion(lineId: number) {
+    const next = new Set(imageIds);
+    if (next.has(lineId)) next.delete(lineId);
+    else next.add(lineId);
+    setImageIds(next);
+    const regions = [...next].flatMap((id) => {
+      const l = ocrLines.find((ll) => ll.id === id);
+      return l ? [polyToRect(l.bbox)] : [];
+    });
+    onImageRegionsChange?.(regions);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Main click handler — dispatches by interaction mode
   // ---------------------------------------------------------------------------
 
   function handleLineClick(line: OCRLine) {
-    if (usedIds.has(line.id)) return;
+    if (interactionMode === "anchor") {
+      // image regions and committed field lines cannot become anchors
+      if (
+        usedIds.has(line.id) ||
+        line.role === "image" ||
+        imageIds.has(line.id)
+      )
+        return;
+      toggleAnchor(line.id);
+      return;
+    }
+
+    if (interactionMode === "image") {
+      // committed field lines and anchor lines cannot be re-classified as images
+      if (usedIds.has(line.id) || anchorIds.has(line.id)) return;
+      toggleImageRegion(line.id);
+      return;
+    }
+
+    // field mode — image regions and anchors are excluded from field mapping
+    if (
+      usedIds.has(line.id) ||
+      line.role === "image" ||
+      imageIds.has(line.id) ||
+      anchorIds.has(line.id)
+    )
+      return;
 
     if (phase === "label") {
       setPendingLabelIds((prev) =>
@@ -147,9 +319,8 @@ export function ManualFieldMapper({
           : [...prev, line.id],
       );
     } else {
-      // value phase — label lines cannot be re-selected (use "No visible label" instead)
       if (pendingLabelIds.includes(line.id)) return;
-      if (noVisibleLabel) return; // value locked to label elements
+      if (noVisibleLabel) return;
       setPendingValueIds((prev) =>
         prev.includes(line.id)
           ? prev.filter((id) => id !== line.id)
@@ -158,9 +329,12 @@ export function ManualFieldMapper({
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Field-mode phase handlers
+  // ---------------------------------------------------------------------------
+
   function handleContinueToValue() {
     if (!pendingLabelIds.length) return;
-    // Pre-fill the label name from the selected OCR text
     const text = pendingLabelIds
       .map((id) => ocrLines.find((l) => l.id === id)?.text ?? "")
       .filter(Boolean)
@@ -172,7 +346,6 @@ export function ManualFieldMapper({
   function handleNoVisibleLabel() {
     setNoVisibleLabel(true);
     setPendingValueIds([...pendingLabelIds]);
-    // Clear the auto-filled OCR text — the user must enter a clean label name
     setForm((prev) => ({ ...prev, label: "" }));
   }
 
@@ -180,7 +353,6 @@ export function ManualFieldMapper({
     setPhase("label");
     setPendingValueIds([]);
     setNoVisibleLabel(false);
-    // Keep pendingLabelIds so the user can adjust their selection
     setFormErrors({});
   }
 
@@ -190,18 +362,11 @@ export function ManualFieldMapper({
       : [...pendingValueIds];
 
     const errors: { label?: string } = {};
-    if (!form.label.trim()) {
-      errors.label = "Label name is required.";
-    }
+    if (!form.label.trim()) errors.label = "Label name is required.";
     if (!effectiveValueIds.length) return;
-
-    if (errors.label) {
-      setFormErrors(errors);
-      return;
-    }
+    if (errors.label) { setFormErrors(errors); return; }
 
     const key = generateKey(form.label, existingKeys);
-
     const newField: TemplateField = {
       key,
       label: form.label.trim(),
@@ -214,8 +379,6 @@ export function ManualFieldMapper({
     const nextFields = [...fields, newField];
     setFields(nextFields);
     onFieldsChange(nextFields);
-
-    // Reset for the next field
     setPendingLabelIds([]);
     setPendingValueIds([]);
     setNoVisibleLabel(false);
@@ -231,27 +394,42 @@ export function ManualFieldMapper({
   }
 
   // ---------------------------------------------------------------------------
-  // Derived visual state
+  // Visual state helpers
   // ---------------------------------------------------------------------------
-
-  type LineVisual =
-    | "available"
-    | "selected_label"
-    | "selected_value"
-    | "used";
 
   function getLineVisual(line: OCRLine): LineVisual {
     if (usedIds.has(line.id)) return "used";
+    if (imageIds.has(line.id)) return "image_active";
+    if (line.role === "image") return "image_discarded";
+    if (anchorIds.has(line.id)) return "anchor";
     if (pendingLabelIds.includes(line.id)) return "selected_label";
     if (pendingValueIds.includes(line.id)) return "selected_value";
     return "available";
   }
 
   function isLineClickable(line: OCRLine): boolean {
-    if (usedIds.has(line.id)) return false;
-    if (phase === "value" && noVisibleLabel) return false;
-    if (phase === "value" && pendingLabelIds.includes(line.id)) return false;
-    return true;
+    switch (interactionMode) {
+      case "anchor":
+        return (
+          !usedIds.has(line.id) &&
+          line.role !== "image" &&
+          !imageIds.has(line.id)
+        );
+      case "image":
+        return !usedIds.has(line.id) && !anchorIds.has(line.id);
+      case "field":
+      default:
+        if (
+          usedIds.has(line.id) ||
+          line.role === "image" ||
+          imageIds.has(line.id) ||
+          anchorIds.has(line.id)
+        )
+          return false;
+        if (phase === "value" && noVisibleLabel) return false;
+        if (phase === "value" && pendingLabelIds.includes(line.id)) return false;
+        return true;
+    }
   }
 
   const canAdd =
@@ -276,7 +454,7 @@ export function ManualFieldMapper({
             draggable={false}
           />
 
-          {/* Completed field region overlays (rendered below OCR overlays) */}
+          {/* Completed field region overlays */}
           {fields.map((f) => {
             const lRect = enclosingRect(f.label_element_ids ?? [], ocrLines);
             const vRect = enclosingRect(f.value_element_ids ?? [], ocrLines);
@@ -343,32 +521,24 @@ export function ManualFieldMapper({
             if (!rect) return null;
             const visual = getLineVisual(line);
             const clickable = isLineClickable(line);
-
-            let className = "rounded transition-colors ";
-            if (visual === "used") {
-              className +=
-                "border border-slate-300/40 bg-slate-100/10 opacity-40 cursor-default";
-            } else if (visual === "selected_label") {
-              className +=
-                "border-2 border-blue-500 bg-blue-400/25 cursor-pointer ring-1 ring-blue-400";
-            } else if (visual === "selected_value") {
-              className +=
-                "border-2 border-emerald-500 bg-emerald-400/25 cursor-pointer ring-1 ring-emerald-400";
-            } else if (clickable) {
-              className +=
-                "border border-slate-300/60 hover:border-blue-400 hover:bg-blue-100/15 cursor-pointer";
-            } else {
-              className += "border border-slate-200/20 opacity-30 cursor-default";
-            }
+            const className = getOverlayCls(visual, clickable, interactionMode);
 
             return (
               <div
                 key={line.id}
                 role={clickable ? "button" : undefined}
                 tabIndex={clickable ? 0 : undefined}
-                title={line.text}
+                title={
+                  line.role === "image"
+                    ? "Photo region"
+                    : line.text || undefined
+                }
                 aria-label={
-                  clickable ? `Select "${line.text}"` : line.text
+                  clickable
+                    ? line.role === "image"
+                      ? "Toggle photo region"
+                      : `Select "${line.text}"`
+                    : line.text || "Photo region"
                 }
                 style={{
                   position: "absolute",
@@ -398,231 +568,346 @@ export function ManualFieldMapper({
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Right — selection panel + field form + mapped fields list            */}
+      {/* Right — mode toggle + mode-specific panel                            */}
       {/* ------------------------------------------------------------------ */}
       <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-        {/* Phase status card */}
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1 dark:text-zinc-400">
-            {phase === "label"
-              ? "Step 1 — Select label elements"
-              : "Step 2 — Select value elements"}
-          </p>
-          <p className="text-sm text-slate-600 dark:text-zinc-300">
-            {phase === "label"
-              ? pendingLabelIds.length === 0
-                ? "Click on a text block in the image to mark it as the field label. You can select multiple blocks."
-                : `${pendingLabelIds.length} block${pendingLabelIds.length > 1 ? "s" : ""} selected as label. Click more to add, or continue.`
-              : noVisibleLabel
-                ? "No visible label — label and value share the same element(s). Enter a field name below and click Add."
-                : pendingValueIds.length === 0
-                  ? "Now click the text block(s) that contain the field value."
-                  : `${pendingValueIds.length} value block${pendingValueIds.length > 1 ? "s" : ""} selected. Fill in the form below to save the field.`}
-          </p>
-
-          {/* Selected element badges */}
-          {pendingLabelIds.length > 0 && (
-            <div className="mt-3 space-y-1.5">
-              <SelectedBadge
-                role="Label"
-                texts={pendingLabelIds.map(
-                  (id) => ocrLines.find((l) => l.id === id)?.text ?? `#${id}`,
+        {/* Mode toggle */}
+        <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1 dark:border-zinc-800 dark:bg-zinc-900">
+          {(
+            [
+              { mode: "field" as const, label: "Map fields" },
+              { mode: "anchor" as const, label: "Anchors" },
+              { mode: "image" as const, label: "Photo regions" },
+            ] as const
+          ).map(({ mode, label }) => {
+            const count =
+              mode === "anchor"
+                ? anchorIds.size
+                : mode === "image"
+                  ? imageIds.size
+                  : 0;
+            const active = interactionMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setInteractionMode(mode)}
+                className={[
+                  "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                  active
+                    ? mode === "field"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : mode === "anchor"
+                        ? "bg-amber-500 text-white shadow-sm"
+                        : "bg-violet-600 text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+                ].join(" ")}
+              >
+                {label}
+                {count > 0 && (
+                  <span
+                    className={[
+                      "ml-1 rounded-full px-1 text-xs",
+                      active
+                        ? "bg-white/20"
+                        : "bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300",
+                    ].join(" ")}
+                  >
+                    {count}
+                  </span>
                 )}
-                color="blue"
-              />
-              {pendingValueIds.length > 0 && !noVisibleLabel && (
-                <SelectedBadge
-                  role="Value"
-                  texts={pendingValueIds.map(
-                    (id) => ocrLines.find((l) => l.id === id)?.text ?? `#${id}`,
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ---- Field mode ---- */}
+        {interactionMode === "field" && (
+          <>
+            {/* Phase status card */}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1 dark:text-zinc-400">
+                {phase === "label"
+                  ? "Step 1 — Select label elements"
+                  : "Step 2 — Select value elements"}
+              </p>
+              <p className="text-sm text-slate-600 dark:text-zinc-300">
+                {phase === "label"
+                  ? pendingLabelIds.length === 0
+                    ? "Click on a text block in the image to mark it as the field label. You can select multiple blocks."
+                    : `${pendingLabelIds.length} block${pendingLabelIds.length > 1 ? "s" : ""} selected as label. Click more to add, or continue.`
+                  : noVisibleLabel
+                    ? "No visible label — label and value share the same element(s). Enter a field name below and click Add."
+                    : pendingValueIds.length === 0
+                      ? "Now click the text block(s) that contain the field value."
+                      : `${pendingValueIds.length} value block${pendingValueIds.length > 1 ? "s" : ""} selected. Fill in the form below to save the field.`}
+              </p>
+
+              {pendingLabelIds.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  <SelectedBadge
+                    role="Label"
+                    texts={pendingLabelIds.map(
+                      (id) =>
+                        ocrLines.find((l) => l.id === id)?.text ?? `#${id}`,
+                    )}
+                    color="blue"
+                  />
+                  {pendingValueIds.length > 0 && !noVisibleLabel && (
+                    <SelectedBadge
+                      role="Value"
+                      texts={pendingValueIds.map(
+                        (id) =>
+                          ocrLines.find((l) => l.id === id)?.text ?? `#${id}`,
+                      )}
+                      color="green"
+                    />
                   )}
-                  color="green"
-                />
-              )}
-              {noVisibleLabel && (
-                <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 dark:border-amber-900 dark:bg-amber-950/20">
-                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                    No visible label
-                  </span>
-                  <span className="text-xs text-amber-600 dark:text-amber-500">
-                    — label = value element(s)
-                  </span>
+                  {noVisibleLabel && (
+                    <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 dark:border-amber-900 dark:bg-amber-950/20">
+                      <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                        No visible label
+                      </span>
+                      <span className="text-xs text-amber-600 dark:text-amber-500">
+                        — label = value element(s)
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Phase action buttons */}
-        <div className="flex flex-wrap gap-2">
-          {phase === "label" && (
-            <button
-              type="button"
-              disabled={pendingLabelIds.length === 0}
-              onClick={handleContinueToValue}
-              className={[
-                "rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-indigo-500",
-                pendingLabelIds.length === 0
-                  ? "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
-                  : "bg-indigo-600 hover:bg-indigo-700",
-              ].join(" ")}
-            >
-              Continue to value →
-            </button>
-          )}
-
-          {phase === "value" && (
-            <>
-              <button
-                type="button"
-                onClick={handleBackToLabel}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors dark:border-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-100"
-              >
-                ← Back to label
-              </button>
-              {!noVisibleLabel && (
+            {/* Phase action buttons */}
+            <div className="flex flex-wrap gap-2">
+              {phase === "label" && (
                 <button
                   type="button"
-                  onClick={handleNoVisibleLabel}
-                  className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 hover:bg-amber-100 transition-colors dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-400"
+                  disabled={pendingLabelIds.length === 0}
+                  onClick={handleContinueToValue}
+                  className={[
+                    "rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors",
+                    "focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                    pendingLabelIds.length === 0
+                      ? "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
+                      : "bg-indigo-600 hover:bg-indigo-700",
+                  ].join(" ")}
                 >
-                  No visible label
+                  Continue to value →
                 </button>
               )}
-            </>
-          )}
-        </div>
 
-        {/* Field form — visible only in value phase */}
-        {phase === "value" && !noVisibleLabel && (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              disabled={!canAdd}
-              onClick={handleAddField}
-              className={[
-                "rounded-md px-4 py-1.5 text-sm font-medium text-white transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
-                canAdd
-                  ? "bg-indigo-600 hover:bg-indigo-700"
-                  : "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500",
-              ].join(" ")}
-            >
-              Add field
-            </button>
-          </div>
-        )}
-
-        {phase === "value" && noVisibleLabel && (
-          <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-4 space-y-3 dark:border-indigo-900/60 dark:bg-indigo-950/20">
-            <p className="text-sm font-medium text-slate-700 dark:text-zinc-200">
-              Field details
-            </p>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-600 dark:text-zinc-300">
-                Label name{" "}
-                <span className="font-normal text-amber-600 dark:text-amber-400">
-                  (required — no OCR label)
-                </span>
-              </label>
-              <input
-                value={form.label}
-                disabled={!canAdd}
-                onChange={(e) => {
-                  setForm((p) => ({ ...p, label: e.target.value }));
-                  setFormErrors((p) => ({ ...p, label: undefined }));
-                }}
-                placeholder="e.g. Visa Number"
-                className={[
-                  "w-full rounded-md border px-3 py-1.5 text-sm",
-                  "focus:outline-none focus:ring-2 focus:ring-indigo-500",
-                  "dark:text-zinc-100 dark:placeholder:text-zinc-500",
-                  formErrors.label
-                    ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30"
-                    : "border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-900",
-                ].join(" ")}
-              />
-              {formErrors.label && (
-                <p className="text-xs text-red-500 dark:text-red-400">
-                  {formErrors.label}
-                </p>
+              {phase === "value" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleBackToLabel}
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors dark:border-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-100"
+                  >
+                    ← Back to label
+                  </button>
+                  {!noVisibleLabel && (
+                    <button
+                      type="button"
+                      onClick={handleNoVisibleLabel}
+                      className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 hover:bg-amber-100 transition-colors dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-400"
+                    >
+                      No visible label
+                    </button>
+                  )}
+                </>
               )}
             </div>
 
-            <div className="flex justify-end pt-1">
-              <button
-                type="button"
-                disabled={!canAdd}
-                onClick={handleAddField}
-                className={[
-                  "rounded-md px-4 py-1.5 text-sm font-medium text-white transition-colors",
-                  "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
-                  canAdd
-                    ? "bg-indigo-600 hover:bg-indigo-700"
-                    : "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500",
-                ].join(" ")}
-              >
-                Add field
-              </button>
+            {/* Add field button (value phase, label present) */}
+            {phase === "value" && !noVisibleLabel && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  disabled={!canAdd}
+                  onClick={handleAddField}
+                  className={[
+                    "rounded-md px-4 py-1.5 text-sm font-medium text-white transition-colors",
+                    "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+                    canAdd
+                      ? "bg-indigo-600 hover:bg-indigo-700"
+                      : "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500",
+                  ].join(" ")}
+                >
+                  Add field
+                </button>
+              </div>
+            )}
+
+            {/* Add field form (value phase, no visible label) */}
+            {phase === "value" && noVisibleLabel && (
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-4 space-y-3 dark:border-indigo-900/60 dark:bg-indigo-950/20">
+                <p className="text-sm font-medium text-slate-700 dark:text-zinc-200">
+                  Field details
+                </p>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-300">
+                    Label name{" "}
+                    <span className="font-normal text-amber-600 dark:text-amber-400">
+                      (required — no OCR label)
+                    </span>
+                  </label>
+                  <input
+                    value={form.label}
+                    disabled={!canAdd}
+                    onChange={(e) => {
+                      setForm((p) => ({ ...p, label: e.target.value }));
+                      setFormErrors((p) => ({ ...p, label: undefined }));
+                    }}
+                    placeholder="e.g. Visa Number"
+                    className={[
+                      "w-full rounded-md border px-3 py-1.5 text-sm",
+                      "focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                      "dark:text-zinc-100 dark:placeholder:text-zinc-500",
+                      formErrors.label
+                        ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30"
+                        : "border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-900",
+                    ].join(" ")}
+                  />
+                  {formErrors.label && (
+                    <p className="text-xs text-red-500 dark:text-red-400">
+                      {formErrors.label}
+                    </p>
+                  )}
+                </div>
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    disabled={!canAdd}
+                    onClick={handleAddField}
+                    className={[
+                      "rounded-md px-4 py-1.5 text-sm font-medium text-white transition-colors",
+                      "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+                      canAdd
+                        ? "bg-indigo-600 hover:bg-indigo-700"
+                        : "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500",
+                    ].join(" ")}
+                  >
+                    Add field
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Mapped fields list */}
+            {fields.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                  Mapped fields ({fields.length})
+                </p>
+                <ul className="space-y-1.5">
+                  {fields.map((f) => {
+                    const isLabelless =
+                      (f.label_element_ids ?? []).join(",") ===
+                      (f.value_element_ids ?? []).join(",");
+                    return (
+                      <li
+                        key={f.key}
+                        className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+                      >
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium text-slate-800 dark:text-zinc-100">
+                            {f.label}
+                          </span>
+                          <span className="ml-2 font-mono text-xs text-slate-400 dark:text-zinc-500">
+                            {f.key}
+                          </span>
+                          {isLabelless && (
+                            <span className="ml-1.5 rounded bg-amber-100 px-1 py-0.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                              no label
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveField(f.key)}
+                          aria-label={`Remove field ${f.key}`}
+                          className="ml-3 shrink-0 text-slate-300 hover:text-red-400 transition-colors dark:text-zinc-600"
+                        >
+                          <svg
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            className="h-4 w-4"
+                            aria-hidden
+                          >
+                            <path
+                              d="M3 8h10"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ---- Anchor mode ---- */}
+        {interactionMode === "anchor" && (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1 dark:text-zinc-400">
+                Anchor marking
+              </p>
+              <p className="text-sm text-slate-600 dark:text-zinc-300">
+                Click text blocks that appear verbatim on every document of
+                this type — e.g. &ldquo;PASAPORTE&rdquo;,
+                &ldquo;REPÚBLICA MEXICANA&rdquo;. These help the pipeline
+                locate fields reliably. Click again to deselect.
+              </p>
             </div>
+
+            {anchorTexts.length > 0 ? (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                  Anchors ({anchorTexts.length})
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {anchorTexts.map((text, i) => (
+                    <span
+                      key={i}
+                      className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300"
+                    >
+                      {text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 dark:text-zinc-500">
+                No anchors marked yet. Click fixed text on the image.
+              </p>
+            )}
           </div>
         )}
 
-        {/* Mapped fields list */}
-        {fields.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-              Mapped fields ({fields.length})
+        {/* ---- Image mode ---- */}
+        {interactionMode === "image" && (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1 dark:text-zinc-400">
+                Photo regions
+              </p>
+              <p className="text-sm text-slate-600 dark:text-zinc-300">
+                Regions detected as photos (violet dashed border) are
+                pre-selected. Click to remove a region or to add a new one.
+                Text regions can also be added if needed.
+              </p>
+            </div>
+
+            <p className="text-sm text-slate-600 dark:text-zinc-300">
+              <span className="font-semibold">{imageIds.size}</span> region
+              {imageIds.size !== 1 ? "s" : ""} selected.
             </p>
-            <ul className="space-y-1.5">
-              {fields.map((f) => {
-                const isLabelless =
-                  (f.label_element_ids ?? []).join(",") ===
-                  (f.value_element_ids ?? []).join(",");
-                return (
-                  <li
-                    key={f.key}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
-                  >
-                    <div className="min-w-0">
-                      <span className="text-sm font-medium text-slate-800 dark:text-zinc-100">
-                        {f.label}
-                      </span>
-                      <span className="ml-2 font-mono text-xs text-slate-400 dark:text-zinc-500">
-                        {f.key}
-                      </span>
-                      {isLabelless && (
-                        <span className="ml-1.5 rounded bg-amber-100 px-1 py-0.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
-                          no label
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveField(f.key)}
-                      aria-label={`Remove field ${f.key}`}
-                      className="ml-3 shrink-0 text-slate-300 hover:text-red-400 transition-colors dark:text-zinc-600"
-                    >
-                      <svg
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        className="h-4 w-4"
-                        aria-hidden
-                      >
-                        <path
-                          d="M3 8h10"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
           </div>
         )}
       </div>
