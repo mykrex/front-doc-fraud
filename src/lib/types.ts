@@ -157,6 +157,7 @@ export interface OCRLine {
   text: string;
   bbox: BBox;
   confidence: number; // 0–1
+  role?: "image" | null; // "image" = photo region detected by OpenCV, null = text
 }
 
 export type SuggestionConfidence = "high" | "medium" | "low";
@@ -213,6 +214,7 @@ export interface ConfirmTemplateRequest {
   mrz_type?: string | null;
   fields: TemplateField[]; // field keys must be UNIQUE (422 otherwise)
   anchors?: string[];
+  image_regions?: { x1: number; y1: number; x2: number; y2: number }[];
   fingerprint?: Record<string, unknown>;
   field_rules?: Record<string, unknown>;
   qr_config?: Record<string, unknown>;
