@@ -2,30 +2,46 @@
 
 // =============================================================================
 // Verify page — POST /v1/verify.
-// Uploads one or more document pages, runs the fraud detection pipeline, and
-// renders the verdict, key metrics, flags, and the raw response.
-// Pipeline: metadata → tampering → preprocessor → ocr → policy.
+// Single-column layout: form fields first, then file upload.
+// Image previews are collapsible (accordion toggle per file).
+// On success stores result in sessionStorage and navigates to /verify/result.
 // =============================================================================
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { verifyDocument, ApiError } from "@/lib/api";
-import type { BaseVerifyResponse } from "@/lib/types";
-import VerdictBadge from "@/components/VerdictBadge";
-import Spinner from "@/components/ui/Spinner";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 
 const ACCEPTED = ".png,.jpg,.jpeg,.pdf";
 
 export default function VerifyPage() {
+  const router = useRouter();
+
   const [files, setFiles] = useState<File[]>([]);
   const [id, setId] = useState("");
   const [documentType, setDocumentType] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [gender, setGender] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<BaseVerifyResponse | null>(null);
+
+  // Object URLs — revoked on file list change and on unmount
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+
+  // Which image previews are expanded (keyed by file list index)
+  const [openPreviews, setOpenPreviews] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviewUrls(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [files]);
 
   const canSubmit = files.length > 0 && id.trim() !== "" && !loading;
 
@@ -33,25 +49,46 @@ export default function VerifyPage() {
     e.preventDefault();
     if (!canSubmit) return;
 
+    const trimmedId = id.trim();
     setLoading(true);
     setError(null);
-    setResult(null);
     try {
       const data = await verifyDocument({
         documentImages: files,
-        id: id.trim(),
+        id: trimmedId,
         documentType: documentType.trim() || undefined,
+        fullName: fullName.trim() || undefined,
+        dateOfBirth: dateOfBirth || undefined,
+        gender: gender || undefined,
       });
-      setResult(data);
+      sessionStorage.setItem(
+        "docfraud:verify_result",
+        JSON.stringify({ result: data, id: trimmedId }),
+      );
+      router.push("/verify/result");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Verification failed.");
-    } finally {
       setLoading(false);
     }
   }
 
   function removeFile(index: number) {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+    setOpenPreviews(new Set());
+  }
+
+  function togglePreview(index: number) {
+    setOpenPreviews((prev) => {
+      const next = new Set(prev);
+      next.has(index) ? next.delete(index) : next.add(index);
+      return next;
+    });
+  }
+
+  function addFiles(picked: File[]) {
+    if (!picked.length) return;
+    setFiles((prev) => [...prev, ...picked]);
+    setOpenPreviews(new Set());
   }
 
   return (
@@ -65,70 +102,8 @@ export default function VerifyPage() {
         </p>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-        {/* File picker */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            Document images <span className="text-red-500">*</span>
-          </label>
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(e) =>
-              e.key === "Enter" && fileInputRef.current?.click()
-            }
-            className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-black/[.12] px-6 py-8 text-center transition-colors hover:border-black/[.3] dark:border-white/[.145] dark:hover:border-white/[.3]"
-          >
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Click to select one or more pages
-            </p>
-            <p className="text-xs text-zinc-400">PNG, JPG, JPEG or PDF</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ACCEPTED}
-            multiple
-            className="sr-only"
-            onChange={(e) => {
-              const picked = Array.from(e.target.files ?? []);
-              if (picked.length) setFiles((prev) => [...prev, ...picked]);
-              e.target.value = ""; // allow re-picking the same file
-            }}
-          />
-
-          {files.length > 0 ? (
-            <ul className="space-y-1.5 pt-1">
-              {files.map((f, i) => (
-                <li
-                  key={`${f.name}-${i}`}
-                  className="flex items-center justify-between rounded-lg border border-black/[.08] px-3 py-2 text-sm dark:border-white/[.145]"
-                >
-                  <span className="truncate text-zinc-700 dark:text-zinc-300">
-                    {f.name}
-                  </span>
-                  <div className="flex shrink-0 items-center gap-3 pl-3">
-                    <span className="text-xs text-zinc-400">
-                      {(f.size / 1024).toFixed(0)} KB
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(i)}
-                      aria-label={`Remove ${f.name}`}
-                      className="text-zinc-400 transition-colors hover:text-red-500"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-
-        {/* id + document_type */}
+        {/* ID + document type */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
@@ -155,92 +130,201 @@ export default function VerifyPage() {
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="inline-flex h-10 items-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {loading ? "Verifying…" : "Verify"}
-        </button>
-      </form>
-
-      {/* Result area */}
-      <div className="mt-8">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Spinner
-              size="lg"
-              label="Running pipeline… this can take a while on the first call."
-            />
+        {/* Declared identity */}
+        <div className="space-y-2 rounded-lg border border-black/[.08] p-4 dark:border-white/[.145]">
+          <div>
+            <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Declared identity{" "}
+              <span className="font-normal text-zinc-400">(optional)</span>
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">
+              These fields are optional. When provided, the pipeline
+              cross-checks the declared identity against the data extracted from
+              the document.
+            </p>
           </div>
-        ) : error ? (
-          <ErrorMessage title="Verification failed" message={error} />
-        ) : result ? (
-          <VerifyResult result={result} />
-        ) : null}
-      </div>
-    </main>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Result view
-// ---------------------------------------------------------------------------
-
-function VerifyResult({ result }: { result: BaseVerifyResponse }) {
-  return (
-    <section className="space-y-6">
-      {/* Verdict + metrics */}
-      <div className="flex flex-wrap items-center gap-6 rounded-lg border border-black/[.08] p-5 dark:border-white/[.145]">
-        <VerdictBadge verdict={result.verdict} size="lg" />
-        <Metric
-          label="Tampering score"
-          value={result.tampering_score.toFixed(4)}
-        />
-        <Metric label="Confidence" value={result.confidence.toFixed(4)} />
-      </div>
-
-      {/* Flags */}
-      <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">
-          Flags ({result.flags.length})
-        </h2>
-        {result.flags.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">No flags raised.</p>
-        ) : (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {result.flags.map((flag) => (
-              <span
-                key={flag}
-                className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
-              >
-                {flag}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                Full name
               </span>
-            ))}
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="as on the document"
+                className="h-9 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                Date of birth
+              </span>
+              <input
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                className="h-9 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                Gender
+              </span>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="h-9 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+              >
+                <option value="">— select —</option>
+                <option value="F">F — Female</option>
+                <option value="M">M — Male</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </label>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Raw response */}
-      <details className="rounded-lg border border-black/[.08] dark:border-white/[.145]">
-        <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Raw response
-        </summary>
-        <pre className="overflow-x-auto border-t border-black/[.06] px-4 py-3 font-mono text-xs text-zinc-600 dark:border-white/[.08] dark:text-zinc-400">
-          {JSON.stringify(result, null, 2)}
-        </pre>
-      </details>
-    </section>
-  );
-}
+        {/* File upload */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            Document images <span className="text-red-500">*</span>
+          </label>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) =>
+              e.key === "Enter" && fileInputRef.current?.click()
+            }
+            className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-black/[.12] px-6 py-8 text-center transition-colors hover:border-black/[.3] dark:border-white/[.145] dark:hover:border-white/[.3]"
+          >
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Click to select one or more pages
+            </p>
+            <p className="text-xs text-zinc-400">PNG, JPG, JPEG or PDF</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED}
+            multiple
+            className="sr-only"
+            onChange={(e) => {
+              addFiles(Array.from(e.target.files ?? []));
+              e.target.value = "";
+            }}
+          />
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs font-medium text-zinc-500">{label}</span>
-      <span className="font-mono text-lg text-black dark:text-zinc-100">
-        {value}
-      </span>
-    </div>
+          {files.length > 0 && (
+            <ul className="space-y-2 pt-1">
+              {files.map((f, i) => {
+                const isImage = f.type.startsWith("image/");
+                const isOpen = openPreviews.has(i);
+
+                return (
+                  <li
+                    key={`${f.name}-${i}`}
+                    className="rounded-lg border border-black/[.08] dark:border-white/[.145]"
+                  >
+                    {/* File row */}
+                    <div className="flex items-center gap-2 px-3 py-2 text-sm">
+                      {/* Toggle arrow — only for images */}
+                      {isImage ? (
+                        <button
+                          type="button"
+                          onClick={() => togglePreview(i)}
+                          aria-label={
+                            isOpen ? "Collapse preview" : "Expand preview"
+                          }
+                          className="shrink-0 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-300"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={`transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+                            aria-hidden="true"
+                          >
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </button>
+                      ) : (
+                        /* PDF icon placeholder to keep alignment */
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="shrink-0 text-zinc-400"
+                          aria-hidden="true"
+                        >
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                      )}
+
+                      <span className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">
+                        {f.name}
+                      </span>
+
+                      <span className="shrink-0 text-xs text-zinc-400">
+                        {(f.size / 1024).toFixed(0)} KB
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        aria-label={`Remove ${f.name}`}
+                        className="shrink-0 text-zinc-400 transition-colors hover:text-red-500"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Collapsible image preview */}
+                    {isImage && isOpen && previewUrls[i] && (
+                      <div className="flex justify-center border-t border-black/[.06] px-3 pb-3 pt-2 dark:border-white/[.08]">
+                        <img
+                          src={previewUrls[i]}
+                          alt={f.name}
+                          className="max-h-64 max-w-full rounded object-contain"
+                        />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {error && <ErrorMessage title="Verification failed" message={error} />}
+
+        <div className="flex flex-col gap-2">
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="inline-flex h-10 w-fit items-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {loading ? "Verifying…" : "Verify"}
+          </button>
+          {loading && (
+            <p className="text-xs text-zinc-400">
+              Running pipeline… this can take a while on the first call.
+            </p>
+          )}
+        </div>
+      </form>
+    </main>
   );
 }
