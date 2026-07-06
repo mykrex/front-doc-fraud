@@ -128,6 +128,15 @@ export async function verifyDocument(
   if (req.documentType) {
     form.append("document_type", req.documentType);
   }
+  if (req.fullName) {
+    form.append("full_name", req.fullName);
+  }
+  if (req.dateOfBirth) {
+    form.append("date_of_birth", req.dateOfBirth);
+  }
+  if (req.gender) {
+    form.append("gender", req.gender);
+  }
 
   try {
     const res = await client.post<BaseVerifyResponse>("/verify", form, {
@@ -137,6 +146,11 @@ export async function verifyDocument(
   } catch (err) {
     throw toApiError(err);
   }
+}
+
+/** Returns the URL for a tampering overlay image served by GET /v1/verify/{id}/image/{filename}. */
+export function getTamperingOverlayUrl(verifyId: string, filename: string): string {
+  return `${BASE_URL}/v1/verify/${encodeURIComponent(verifyId)}/image/${encodeURIComponent(filename)}`;
 }
 
 // ---------------------------------------------------------------------------
