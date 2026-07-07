@@ -15,6 +15,7 @@ export interface MetadataFileReport {
 }
 
 export interface TamperingPage {
+  overlay_filename?: string | null;
   [key: string]: unknown;
 }
 
@@ -42,7 +43,7 @@ export interface VerifyExecution {
 }
 
 export interface BaseVerifyResponse {
-  tampering_score: number;
+  risk_score?: number | null;
   flags: string[];
   confidence: number;
   verdict: Verdict;
@@ -54,6 +55,9 @@ export interface VerifyRequest {
   documentImages: File[]; // one or more pages
   id: string; // required
   documentType?: string; // optional, e.g. "passport"
+  fullName?: string; // optional — sent as full_name
+  dateOfBirth?: string; // optional — sent as date_of_birth (YYYY-MM-DD)
+  gender?: string; // optional — sent as gender; backend does .strip().upper()
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +161,7 @@ export interface OCRLine {
   text: string;
   bbox: BBox;
   confidence: number; // 0–1
+  role?: "image" | null; // "image" = photo region detected by OpenCV, null = text
 }
 
 export type SuggestionConfidence = "high" | "medium" | "low";
@@ -213,6 +218,7 @@ export interface ConfirmTemplateRequest {
   mrz_type?: string | null;
   fields: TemplateField[]; // field keys must be UNIQUE (422 otherwise)
   anchors?: string[];
+  image_regions?: { x1: number; y1: number; x2: number; y2: number }[];
   fingerprint?: Record<string, unknown>;
   field_rules?: Record<string, unknown>;
   qr_config?: Record<string, unknown>;

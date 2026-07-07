@@ -44,10 +44,10 @@ function StepBar({ current }: { current: number }) {
                 className={[
                   "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold border-2 transition-colors",
                   done
-                    ? "border-indigo-600 bg-indigo-600 text-white"
+                    ? "border-brand-blue bg-brand-blue text-white"
                     : active
-                      ? "border-indigo-600 bg-white text-indigo-600 dark:bg-zinc-900"
-                      : "border-slate-200 bg-white text-slate-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500",
+                      ? "border-brand-blue bg-white text-brand-blue dark:bg-brand-white"
+                      : "border-brand-silver bg-white text-brand-gray/40 dark:border-blue/15 dark:text-foreground/40",
                 ].join(" ")}
               >
                 {done ? (
@@ -68,8 +68,8 @@ function StepBar({ current }: { current: number }) {
                 className={[
                   "text-xs whitespace-nowrap",
                   active
-                    ? "text-indigo-700 font-medium dark:text-indigo-300"
-                    : "text-slate-400 dark:text-zinc-500",
+                    ? "text-brand-blue-dark font-medium dark:text-brand-blue"
+                    : "text-brand-gray/40 dark:text-foreground/40",
                 ].join(" ")}
               >
                 {label}
@@ -79,7 +79,7 @@ function StepBar({ current }: { current: number }) {
               <div
                 className={[
                   "mx-3 mb-4 h-px w-12 transition-colors",
-                  done ? "bg-indigo-400" : "bg-slate-200 dark:bg-zinc-700",
+                  done ? "bg-brand-blue" : "bg-brand-silver dark:bg-white/15",
                 ].join(" ")}
               />
             )}
@@ -127,17 +127,32 @@ type Rect = { x1: number; y1: number; x2: number; y2: number };
 function polyToRect(bbox: number[][]): Rect {
   const xs = bbox.map((p) => p[0]);
   const ys = bbox.map((p) => p[1]);
-  return { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
+  return {
+    x1: Math.min(...xs),
+    y1: Math.min(...ys),
+    x2: Math.max(...xs),
+    y2: Math.max(...ys),
+  };
 }
 
-function enclosingRect(ids: number[], lines: { id: number; bbox: number[][] }[]): Rect | null {
-  const elems = ids.map((id) => lines.find((l) => l.id === id)).filter(Boolean) as { bbox: number[][] }[];
+function enclosingRect(
+  ids: number[],
+  lines: { id: number; bbox: number[][] }[],
+): Rect | null {
+  const elems = ids
+    .map((id) => lines.find((l) => l.id === id))
+    .filter(Boolean) as { bbox: number[][] }[];
   if (!elems.length) return null;
   const pts = elems.flatMap((e) => e.bbox);
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   const r = (v: number) => Math.round(v * 10000) / 10000;
-  return { x1: r(Math.min(...xs)), y1: r(Math.min(...ys)), x2: r(Math.max(...xs)), y2: r(Math.max(...ys)) };
+  return {
+    x1: r(Math.min(...xs)),
+    y1: r(Math.min(...ys)),
+    x2: r(Math.max(...xs)),
+    y2: r(Math.max(...ys)),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +196,10 @@ export default function NewTemplatePage() {
     string | null
   >(null);
   const [manualFields, setManualFields] = useState<TemplateField[]>([]);
+  const [manualAnchors, setManualAnchors] = useState<string[]>([]);
+  const [manualImageRegions, setManualImageRegions] = useState<
+    { x1: number; y1: number; x2: number; y2: number }[]
+  >([]);
 
   // Session expiry countdown (updates every second)
   const [expiryCountdown, setExpiryCountdown] = useState<string>("");
@@ -230,6 +249,8 @@ export default function NewTemplatePage() {
       setPreprocessedImageUrl(null);
     }
     setManualFields([]);
+    setManualAnchors([]);
+    setManualImageRegions([]);
 
     try {
       const data = await generateTemplate({ image: file, mode: "manual" });
@@ -258,6 +279,8 @@ export default function NewTemplatePage() {
       setPreprocessedImageUrl(null);
     }
     setManualFields([]);
+    setManualAnchors([]);
+    setManualImageRegions([]);
     setStep(0);
   }
 
@@ -307,7 +330,8 @@ export default function NewTemplatePage() {
       doc_family: generate.preclass.doc_family ?? null,
       mrz_type: generate.preclass.mrz_type ?? null,
       fields: manualFields,
-      anchors: [],
+      anchors: manualAnchors,
+      image_regions: manualImageRegions,
       fingerprint: {},
       field_rules: {},
       qr_config: generate.qr_config,
@@ -353,10 +377,10 @@ export default function NewTemplatePage() {
       ].join(" ")}
     >
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-zinc-50">
+        <h1 className="text-2xl font-semibold text-brand-gray dark:text-foreground">
           New template
         </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-brand-gray/60 dark:text-foreground/60">
           Upload a reference image, pair OCR lines as label / value fields, then
           confirm.
         </p>
@@ -392,10 +416,10 @@ export default function NewTemplatePage() {
               "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed",
               "cursor-pointer px-6 py-12 text-center transition-colors",
               dragOver
-                ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30"
+                ? "border-brand-blue bg-brand-surface dark:bg-brand-blue/20"
                 : file
-                  ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-800 dark:bg-indigo-950/20"
-                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800",
+                  ? "border-brand-blue/50 bg-brand-surface dark:border-brand-blue/40 dark:bg-brand-blue/10"
+                  : "border-brand-silver bg-white hover:border-brand-blue/50 hover:bg-brand-surface dark:border-blue/10 dark:bg-white/5 dark:hover:border-brand-blue/40",
             ].join(" ")}
           >
             {file ? (
@@ -403,7 +427,7 @@ export default function NewTemplatePage() {
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
-                  className="h-8 w-8 text-indigo-400"
+                  className="h-8 w-8 text-brand-blue"
                   aria-hidden
                 >
                   <path
@@ -420,10 +444,10 @@ export default function NewTemplatePage() {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <p className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                <p className="text-sm font-medium text-brand-blue-dark dark:text-brand-blue">
                   {file.name}
                 </p>
-                <p className="text-xs text-slate-400 dark:text-zinc-500">
+                <p className="text-xs text-brand-gray/40 dark:text-foreground/40">
                   {(file.size / 1024).toFixed(0)} KB · Click to change
                 </p>
               </>
@@ -432,7 +456,7 @@ export default function NewTemplatePage() {
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
-                  className="h-8 w-8 text-slate-300 dark:text-zinc-600"
+                  className="h-8 w-8 text-brand-gray/30 dark:text-foreground/30"
                   aria-hidden
                 >
                   <path
@@ -452,14 +476,14 @@ export default function NewTemplatePage() {
                     strokeWidth="1.5"
                   />
                 </svg>
-                <p className="text-sm text-slate-500 dark:text-zinc-400">
+                <p className="text-sm text-brand-black dark:text-foreground">
                   Drag an image or{" "}
-                  <span className="text-indigo-600 underline dark:text-indigo-400">
+                  <span className="text-brand-blue underline">
                     select a file
                   </span>
                 </p>
-                <p className="text-xs text-slate-400 dark:text-zinc-500">
-                  PNG, JPG or JPEG · max. 10 MB
+                <p className="text-xs text-brand-gray/40 dark:text-foreground/40">
+                  PNG, JPG, JPEG or PDF · max. 10 MB
                 </p>
               </>
             )}
@@ -468,7 +492,7 @@ export default function NewTemplatePage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".png,.jpg,.jpeg"
+            accept=".png,.jpg,.jpeg,.pdf"
             className="sr-only"
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -488,10 +512,10 @@ export default function NewTemplatePage() {
             onClick={handleGenerate}
             className={[
               "w-full rounded-lg py-2.5 text-sm font-medium text-white transition-colors",
-              "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+              "focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-1",
               !file || generating
-                ? "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
-                : "bg-indigo-600 hover:bg-indigo-700",
+                ? "bg-brand-silver text-brand-gray/40 cursor-not-allowed dark:bg-white/10 dark:text-foreground/40"
+                : "bg-brand-blue hover:bg-brand-blue-dark",
             ].join(" ")}
           >
             {generating ? "Processing image…" : "Detect fields"}
@@ -508,11 +532,11 @@ export default function NewTemplatePage() {
           {(generate.preclass.doc_family ||
             generate.preclass.country_iso ||
             generate.preclass.mrz_type) && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 flex flex-wrap gap-x-4 gap-y-1 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+            <div className="rounded-lg border border-brand-silver bg-brand-surface px-4 py-3 text-sm text-brand-gray/70 flex flex-wrap gap-x-4 gap-y-1 dark:border-blue/10 dark:bg-white/5 dark:text-foreground/70">
               {generate.preclass.doc_family && (
                 <span>
                   Family:{" "}
-                  <strong className="text-slate-800 dark:text-zinc-100">
+                  <strong className="text-brand-gray dark:text-foreground">
                     {generate.preclass.doc_family}
                   </strong>
                 </span>
@@ -520,7 +544,7 @@ export default function NewTemplatePage() {
               {generate.preclass.country_iso && (
                 <span>
                   Country ISO:{" "}
-                  <strong className="text-slate-800 dark:text-zinc-100">
+                  <strong className="text-brand-gray dark:text-foreground">
                     {generate.preclass.country_iso}
                   </strong>
                 </span>
@@ -528,7 +552,7 @@ export default function NewTemplatePage() {
               {generate.preclass.mrz_type && (
                 <span>
                   MRZ:{" "}
-                  <strong className="text-slate-800 dark:text-zinc-100">
+                  <strong className="text-brand-gray dark:text-foreground">
                     {generate.preclass.mrz_type}
                   </strong>
                 </span>
@@ -536,7 +560,7 @@ export default function NewTemplatePage() {
               {generate.preclass.confidence != null && (
                 <span>
                   Confidence:{" "}
-                  <strong className="text-slate-800 dark:text-zinc-100">
+                  <strong className="text-brand-gray dark:text-foreground">
                     {(generate.preclass.confidence * 100).toFixed(0)}%
                   </strong>
                 </span>
@@ -549,7 +573,7 @@ export default function NewTemplatePage() {
                       expiryCountdown === "Expired" ||
                       parseInt(expiryCountdown) < 5
                         ? "text-red-600 dark:text-red-400"
-                        : "text-slate-800 dark:text-zinc-100"
+                        : "text-brand-gray dark:text-foreground"
                     }
                   >
                     {expiryCountdown}
@@ -563,12 +587,14 @@ export default function NewTemplatePage() {
             imageUrl={preprocessedImageUrl}
             ocrLines={generate.ocr_lines}
             onFieldsChange={setManualFields}
+            onAnchorsChange={setManualAnchors}
+            onImageRegionsChange={setManualImageRegions}
           />
 
           {/* Summary + navigation */}
-          <div className="flex items-center justify-between border-t border-slate-100 pt-4 dark:border-zinc-800">
-            <p className="text-sm text-slate-500 dark:text-zinc-400">
-              <span className="font-medium text-slate-700 dark:text-zinc-200">
+          <div className="flex items-center justify-between border-t border-brand-silver/50 pt-4 dark:border-blue/10">
+            <p className="text-sm text-brand-gray/60 dark:text-foreground/60">
+              <span className="font-medium text-brand-gray dark:text-foreground">
                 {manualFields.length}
               </span>{" "}
               field{manualFields.length !== 1 ? "s" : ""} mapped
@@ -577,7 +603,7 @@ export default function NewTemplatePage() {
               <button
                 type="button"
                 onClick={handleBackToUpload}
-                className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors dark:text-zinc-400 dark:hover:text-zinc-100"
+                className="rounded-lg px-4 py-2 text-sm text-brand-gray/60 hover:text-brand-blue-dark transition-colors dark:text-foreground/60 dark:hover:text-foreground"
               >
                 Back
               </button>
@@ -587,10 +613,10 @@ export default function NewTemplatePage() {
                 onClick={handleAdvanceToPreview}
                 className={[
                   "rounded-lg px-5 py-2 text-sm font-medium text-white transition-colors",
-                  "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+                  "focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-1",
                   manualFields.length === 0
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
-                    : "bg-indigo-600 hover:bg-indigo-700",
+                    ? "bg-brand-silver text-brand-gray/40 cursor-not-allowed dark:bg-white/10 dark:text-foreground/40"
+                    : "bg-brand-blue hover:bg-brand-blue-dark",
                 ].join(" ")}
               >
                 Continue
@@ -605,7 +631,7 @@ export default function NewTemplatePage() {
       {/* ------------------------------------------------------------------ */}
       {step === 2 && generate && preprocessedImageUrl && (
         <section className="space-y-6">
-          <p className="text-sm text-slate-500 dark:text-zinc-400">
+          <p className="text-sm text-brand-gray/60 dark:text-foreground/60">
             Review the mapped regions below.{" "}
             <span className="inline-flex items-center gap-1">
               <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 border-blue-400 bg-blue-300/30" />
@@ -616,22 +642,34 @@ export default function NewTemplatePage() {
               <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 border-emerald-400 bg-emerald-300/30" />
               <span>Green = value</span>
             </span>
+            {" · "}
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 border-dashed border-violet-500 bg-violet-300/20" />
+              <span>Violet = photo</span>
+            </span>
             . Go back if something is wrong, or confirm to continue.
           </p>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(0,300px)]">
             {/* Image with overlays */}
-            <div className="relative inline-block w-full select-none">
+            <div className="relative w-full select-none self-start overflow-hidden rounded-lg">
               <img
                 src={preprocessedImageUrl}
                 alt="Region preview"
-                className="block w-full rounded-lg border border-slate-200 shadow-sm dark:border-zinc-800"
+                className="block w-full rounded-lg border border-brand-silver shadow-sm dark:border-blue/10"
                 draggable={false}
               />
               {manualFields.map((f) => {
-                const lRect = enclosingRect(f.label_element_ids ?? [], generate.ocr_lines);
-                const vRect = enclosingRect(f.value_element_ids ?? [], generate.ocr_lines);
-                const sameRegion = JSON.stringify(lRect) === JSON.stringify(vRect);
+                const lRect = enclosingRect(
+                  f.label_element_ids ?? [],
+                  generate.ocr_lines,
+                );
+                const vRect = enclosingRect(
+                  f.value_element_ids ?? [],
+                  generate.ocr_lines,
+                );
+                const sameRegion =
+                  JSON.stringify(lRect) === JSON.stringify(vRect);
                 return (
                   <Fragment key={f.key}>
                     {lRect && (
@@ -705,11 +743,29 @@ export default function NewTemplatePage() {
                   </Fragment>
                 );
               })}
+
+              {/* Image region overlays */}
+              {manualImageRegions.map((r, i) => (
+                <div
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    left: `${r.x1 * 100}%`,
+                    top: `${r.y1 * 100}%`,
+                    width: `${(r.x2 - r.x1) * 100}%`,
+                    height: `${(r.y2 - r.y1) * 100}%`,
+                    border: "2px dashed #8b5cf6",
+                    backgroundColor: "rgba(139,92,246,0.10)",
+                    borderRadius: "3px",
+                    pointerEvents: "none",
+                  }}
+                />
+              ))}
             </div>
 
-            {/* Field list */}
+            {/* Field list + anchors + image regions */}
             <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-gray/60 dark:text-foreground/60">
                 Fields ({manualFields.length})
               </p>
               <ul className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
@@ -720,17 +776,17 @@ export default function NewTemplatePage() {
                   return (
                     <li
                       key={f.key}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+                      className="rounded-lg border border-brand-silver bg-white px-3 py-2 dark:border-blue/10 dark:bg-white/5"
                     >
-                      <span className="text-sm font-medium text-slate-800 dark:text-zinc-100">
+                      <span className="text-sm font-medium text-brand-gray dark:text-foreground">
                         {f.label}
                       </span>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="font-mono text-xs text-slate-400 dark:text-zinc-500">
+                        <span className="font-mono text-xs text-brand-gray/40 dark:text-foreground/40">
                           {f.key}
                         </span>
                         {isLabelless && (
-                          <span className="rounded bg-amber-100 px-1 py-0.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                          <span className="rounded bg-blue-100 px-1 py-0.5 text-xs text-blue-700 dark:bg-blue-750/30 dark:text-blue-400">
                             no label
                           </span>
                         )}
@@ -739,21 +795,48 @@ export default function NewTemplatePage() {
                   );
                 })}
               </ul>
+
+              {manualAnchors.length > 0 && (
+                <div className="pt-2 space-y-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-gray/60 dark:text-foreground/60">
+                    Anchors ({manualAnchors.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {manualAnchors.map((text, i) => (
+                      <span
+                        key={i}
+                        className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-500/40 dark:bg-amber-200/30 dark:text-amber-500"
+                      >
+                        {text}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {manualImageRegions.length > 0 && (
+                <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-brand-gray/60 dark:text-foreground/60">
+                  Photo regions:{" "}
+                  <span className="font-bold text-brand-purple dark:text-brand-purple">
+                    {manualImageRegions.length}
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="flex justify-between border-t border-slate-100 pt-4 dark:border-zinc-800">
+          <div className="flex justify-between border-t border-brand-silver/50 pt-4 dark:border-blue/10">
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors dark:text-zinc-400 dark:hover:text-zinc-100"
+              className="rounded-lg px-4 py-2 text-sm text-brand-gray/60 hover:text-brand-blue-dark transition-colors dark:text-foreground/60 dark:hover:text-foreground"
             >
               ← Back to mapping
             </button>
             <button
               type="button"
               onClick={handleAdvanceToMeta}
-              className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+              className="rounded-lg bg-brand-blue px-6 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-1"
             >
               Regions look correct →
             </button>
@@ -766,7 +849,7 @@ export default function NewTemplatePage() {
       {/* ------------------------------------------------------------------ */}
       {step === 3 && (
         <section className="space-y-5">
-          <p className="text-sm text-slate-500 dark:text-zinc-400">
+          <p className="text-sm text-brand-gray/60 dark:text-foreground">
             Fill in the template details. The <strong>type</strong>,{" "}
             <strong>edition</strong>, and <strong>country ISO</strong> form the
             unique identifier on the server.
@@ -849,21 +932,50 @@ export default function NewTemplatePage() {
             </Field>
           </div>
 
-          {/* Fields summary (read-only) */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-1 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-zinc-400">
-              Fields to save ({manualFields.length})
-            </p>
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {manualFields.map((f) => (
-                <span
-                  key={f.key}
-                  className="rounded-md bg-white border border-slate-200 px-2 py-0.5 font-mono text-xs text-slate-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                >
-                  {f.key}
-                </span>
-              ))}
+          {/* Summary (read-only) */}
+          <div className="rounded-lg border border-brand-silver bg-brand-surface px-4 py-3 space-y-3 dark:border-blue/10 dark:bg-white/5">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-brand-gray/60 uppercase tracking-wide dark:text-foreground/60">
+                Fields to save ({manualFields.length})
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {manualFields.map((f) => (
+                  <span
+                    key={f.key}
+                    className="rounded-md bg-white border border-brand-blue px-2 py-0.5 font-mono text-xs text-brand-gray dark:border-blue/15 dark:bg-white/10 dark:text-foreground/70"
+                  >
+                    {f.key}
+                  </span>
+                ))}
+              </div>
             </div>
+
+            {manualAnchors.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-brand-gray/60 uppercase tracking-wide dark:text-foreground/60">
+                  Anchors ({manualAnchors.length})
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {manualAnchors.map((text, i) => (
+                    <span
+                      key={i}
+                      className="rounded-md border border-amber-200 px-2 py-0.5 text-xs font-medium text-brand-gray/60 dark:border-amber-500/40 dark:text-brand-gray/60"
+                    >
+                      {text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {manualImageRegions.length > 0 && (
+              <p className="text-xs font-medium text-brand-gray/60 dark:text-foreground/60">
+                Photo regions:{" "}
+                <span className="font-semibold text-brand-purple dark:text-brand-purple">
+                  {manualImageRegions.length}
+                </span>
+              </p>
+            )}
           </div>
 
           {confirmError && (
@@ -874,11 +986,11 @@ export default function NewTemplatePage() {
             </div>
           )}
 
-          <div className="flex justify-between border-t border-slate-100 pt-4 dark:border-zinc-800">
+          <div className="flex justify-between border-t border-brand-silver/50 pt-4 dark:border-blue/10">
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors dark:text-zinc-400 dark:hover:text-zinc-100"
+              className="rounded-lg px-4 py-2 text-sm text-brand-gray/60 hover:text-brand-blue-dark transition-colors dark:text-foreground/60 dark:hover:text-foreground"
             >
               Back
             </button>
@@ -888,10 +1000,10 @@ export default function NewTemplatePage() {
               onClick={handleConfirm}
               className={[
                 "rounded-lg px-6 py-2 text-sm font-medium text-white transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+                "focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-1",
                 confirming
-                  ? "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
-                  : "bg-indigo-600 hover:bg-indigo-700",
+                  ? "bg-brand-silver text-brand-gray/40 cursor-not-allowed dark:bg-white/10 dark:text-foreground/40"
+                  : "bg-brand-blue hover:bg-brand-blue-dark",
               ].join(" ")}
             >
               {confirming ? "Saving…" : "Save template"}
@@ -920,10 +1032,10 @@ function Field({
 }) {
   return (
     <div className="space-y-1">
-      <label className="text-xs font-medium text-slate-600 dark:text-zinc-300">
+      <label className="text-xs font-medium text-brand-gray/70 dark:text-foreground/70">
         {label}
         {hint && (
-          <span className="ml-1 font-normal text-slate-400 dark:text-zinc-500">
+          <span className="ml-1 font-normal text-brand-gray/40 dark:text-foreground/40">
             ({hint})
           </span>
         )}
@@ -939,10 +1051,10 @@ function Field({
 function inputCls(hasError: boolean) {
   return [
     "w-full rounded-md border px-3 py-1.5 text-sm",
-    "text-slate-900 placeholder:text-slate-400 dark:text-zinc-100 dark:placeholder:text-zinc-500",
-    "focus:outline-none focus:ring-2 focus:ring-indigo-500",
+    "text-brand-gray placeholder:text-brand-gray/40 dark:text-foreground dark:placeholder:text-foreground/40",
+    "focus:outline-none focus:ring-2 focus:ring-brand-blue",
     hasError
       ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30"
-      : "border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-900",
+      : "border-brand-silver bg-white dark:border-blue/15 dark:bg-white/5",
   ].join(" ");
 }

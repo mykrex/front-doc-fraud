@@ -6,17 +6,17 @@ const STYLES: Record<Verdict, { classes: string; label: string }> = {
   ACCEPT: {
     label: "Accepted",
     classes:
-      "border-green-200 bg-green-50 text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300",
+      "border-green-200 bg-green-50 text-green-800 dark:border-green-600/50 dark:bg-green-550/30 dark:text-green-300",
   },
   REVIEW: {
     label: "Review",
     classes:
-      "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-300",
+      "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-600/50 dark:bg-orange-550/30 dark:text-orange-300",
   },
   REJECT: {
     label: "Rejected",
     classes:
-      "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300",
+      "border-red-200 bg-red-50 text-red-800 dark:border-red-600/50 dark:bg-red-550/30 dark:text-red-300",
   },
 };
 
