@@ -1,8 +1,5 @@
 "use client";
 
-// Global navigation bar. Rendered once from the root layout, so it appears on
-// every page. Highlights the active section based on the current pathname.
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -19,11 +16,11 @@ export default function Navbar() {
   }
 
   return (
-    <header className="border-b border-black/[.08] bg-white dark:border-white/[.145] dark:bg-black">
+    <header className="bg-brand-blue">
       <nav className="mx-auto flex w-full max-w-5xl items-center gap-6 px-6 py-4">
         <Link
           href="/"
-          className="text-base font-semibold tracking-tight text-black dark:text-zinc-50"
+          className="text-base font-semibold tracking-tight text-white"
         >
           Doc Fraud
         </Link>
@@ -35,8 +32,8 @@ export default function Navbar() {
               aria-current={isActive(link.href) ? "page" : undefined}
               className={
                 isActive(link.href)
-                  ? "text-black dark:text-zinc-50"
-                  : "text-zinc-600 transition-colors hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+                  ? "text-white"
+                  : "text-white/70 transition-colors hover:text-white"
               }
             >
               {link.label}

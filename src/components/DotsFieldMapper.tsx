@@ -14,7 +14,12 @@
 // =============================================================================
 
 import { useState, useMemo, useEffect } from "react";
-import type { OCRElement, TemplateField, FieldType, FieldSuggestion } from "@/lib/types";
+import type {
+  OCRElement,
+  TemplateField,
+  FieldType,
+  FieldSuggestion,
+} from "@/lib/types";
 import { FIELD_TYPES } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -80,8 +85,8 @@ const MAPPED_LABEL_COLOR = { border: "#4A90D9", bg: "rgba(74,144,217,0.18)" };
 const MAPPED_VALUE_COLOR = { border: "#5CB85C", bg: "rgba(92,184,92,0.18)" };
 function getAnchorStyle(isAnchor: boolean): string {
   return isAnchor
-    ? "border-2 border-amber-500 bg-amber-200/30 cursor-pointer ring-1 ring-amber-500"
-    : "border-2 border-amber-300/50 bg-amber-50/10 hover:border-amber-400 hover:bg-amber-100/20 cursor-pointer";
+    ? "border-2 border-blue-500 bg-blue-200/30 cursor-pointer ring-1 ring-blue-500"
+    : "border-2 border-blue-300/50 bg-blue-50/10 hover:border-blue-400 hover:bg-blue-100/20 cursor-pointer";
 }
 
 // Returns the correct overlay class, using the element's role for initial color
@@ -115,19 +120,21 @@ export function DotsFieldMapper({
   const imageUrl = useMemo(() => URL.createObjectURL(imageFile), [imageFile]);
 
   type InteractionMode = "field_mapping" | "anchor_marking";
-  const [interactionMode, setInteractionMode] = useState<InteractionMode>("field_mapping");
+  const [interactionMode, setInteractionMode] =
+    useState<InteractionMode>("field_mapping");
   const [anchorIds, setAnchorIds] = useState<Set<number>>(new Set());
 
   const [selection, setSelection] = useState<SelectionState>({ phase: "idle" });
   const [fields, setFields] = useState<TemplateField[]>(() => {
     if (!suggestions?.length) return [];
-    const map = new Map(ocrElements.map(e => [e.id, e]));
+    const map = new Map(ocrElements.map((e) => [e.id, e]));
     const result: TemplateField[] = [];
     const seenKeys = new Set<string>();
     for (const s of suggestions) {
       // llm_pairer is semantically equivalent to MRZ confidence (guide §auto mode).
       // Auto-accept high-confidence AND llm_pairer; medium/low go to the pending panel.
-      const isHighConfidence = s.confidence === "high" || s.source === "llm_pairer";
+      const isHighConfidence =
+        s.confidence === "high" || s.source === "llm_pairer";
       if (!isHighConfidence) continue;
       if (s.label_element_id == null || !s.value_element_ids.length) continue;
       if (seenKeys.has(s.key)) continue;
@@ -159,7 +166,10 @@ export function DotsFieldMapper({
     if (fields.length > 0) onFieldsChange(fields);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const elemById = useMemo(() => new Map(ocrElements.map(e => [e.id, e])), [ocrElements]);
+  const elemById = useMemo(
+    () => new Map(ocrElements.map((e) => [e.id, e])),
+    [ocrElements],
+  );
 
   const usedIds = useMemo(() => {
     const ids = new Set<number>();
@@ -175,10 +185,15 @@ export function DotsFieldMapper({
   // Suggestions that weren't auto-accepted (medium/low confidence) and can still be added.
   const pendingSuggestions = useMemo(() => {
     if (!suggestions?.length) return [];
-    return suggestions.filter(s => {
+    return suggestions.filter((s) => {
       if (s.confidence === "high" || s.source === "llm_pairer") return false;
-      if (s.label_element_id == null || !s.value_element_ids.length) return false;
-      if (!elemById.has(s.label_element_id) || !elemById.has(s.value_element_ids[0])) return false;
+      if (s.label_element_id == null || !s.value_element_ids.length)
+        return false;
+      if (
+        !elemById.has(s.label_element_id) ||
+        !elemById.has(s.value_element_ids[0])
+      )
+        return false;
       if (existingKeys.includes(s.key)) return false;
       return true;
     });
@@ -366,7 +381,7 @@ export function DotsFieldMapper({
           {ocrElements.map((elem) => {
             const { x1, y1, x2, y2 } = elem.bbox;
 
-            // Anchor-marking mode: every element is a toggle, amber styling
+            // Anchor-marking mode: every element is a toggle, blue styling
             if (interactionMode === "anchor_marking") {
               const isAnchor = anchorIds.has(elem.id);
               return (
@@ -382,7 +397,11 @@ export function DotsFieldMapper({
                     }
                   }}
                   title={elem.text}
-                  aria-label={isAnchor ? `Remove anchor: "${elem.text}"` : `Mark as anchor: "${elem.text}"`}
+                  aria-label={
+                    isAnchor
+                      ? `Remove anchor: "${elem.text}"`
+                      : `Mark as anchor: "${elem.text}"`
+                  }
                   aria-pressed={isAnchor}
                   style={{
                     position: "absolute",
@@ -391,7 +410,10 @@ export function DotsFieldMapper({
                     width: `${(x2 - x1) * 100}%`,
                     height: `${(y2 - y1) * 100}%`,
                   }}
-                  className={["rounded transition-colors", getAnchorStyle(isAnchor)].join(" ")}
+                  className={[
+                    "rounded transition-colors",
+                    getAnchorStyle(isAnchor),
+                  ].join(" ")}
                 />
               );
             }
@@ -402,7 +424,8 @@ export function DotsFieldMapper({
 
             // Mapped element: colored overlay with field key label
             if (status === "used" && fieldInfo) {
-              const mappedColor = elem.role === "value" ? MAPPED_VALUE_COLOR : MAPPED_LABEL_COLOR;
+              const mappedColor =
+                elem.role === "value" ? MAPPED_VALUE_COLOR : MAPPED_LABEL_COLOR;
               return (
                 <div
                   key={elem.id}
@@ -507,7 +530,7 @@ export function DotsFieldMapper({
             className={[
               "flex-1 px-4 py-2 transition-colors",
               interactionMode === "anchor_marking"
-                ? "bg-amber-500 text-white"
+                ? "bg-blue-500 text-white"
                 : "bg-white text-slate-500 hover:bg-slate-50 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800",
             ].join(" ")}
           >
@@ -581,7 +604,7 @@ export function DotsFieldMapper({
                           className={[
                             "rounded border px-1.5 py-0.5 text-xs font-medium",
                             s.confidence === "medium"
-                              ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-400"
+                              ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-400"
                               : "border-slate-200 bg-slate-50 text-slate-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500",
                           ].join(" ")}
                         >
@@ -657,7 +680,9 @@ export function DotsFieldMapper({
                   </label>
                   <input
                     value={form.label}
-                    onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, label: e.target.value }))
+                    }
                     placeholder="Auto-filled from label element"
                     className={[
                       "w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm",
@@ -675,7 +700,10 @@ export function DotsFieldMapper({
                   <select
                     value={form.type}
                     onChange={(e) =>
-                      setForm((p) => ({ ...p, type: e.target.value as FieldType }))
+                      setForm((p) => ({
+                        ...p,
+                        type: e.target.value as FieldType,
+                      }))
                     }
                     className={[
                       "w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm",
@@ -736,9 +764,9 @@ export function DotsFieldMapper({
 
         {/* Anchor-marking panel */}
         {interactionMode === "anchor_marking" && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50/40 px-4 py-3 space-y-3 dark:border-amber-900/40 dark:bg-amber-950/10">
+          <div className="rounded-lg border border-blue-200 bg-blue-50/40 px-4 py-3 space-y-3 dark:border-blue-900/40 dark:bg-blue-950/10">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-amber-700 uppercase tracking-wide dark:text-amber-400">
+              <p className="text-xs font-medium text-blue-700 uppercase tracking-wide dark:text-blue-400">
                 Anchor elements
               </p>
               <span
@@ -746,15 +774,16 @@ export function DotsFieldMapper({
                   "rounded-full px-2 py-0.5 text-xs font-medium",
                   anchorIds.size >= 3 && anchorIds.size <= 6
                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
-                    : "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
+                    : "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400",
                 ].join(" ")}
               >
                 {anchorIds.size} / 3–6
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-              Click text blocks on the image that uniquely identify this document
-              type (e.g. title, issuing authority). Aim for 3–6 anchors.
+              Click text blocks on the image that uniquely identify this
+              document type (e.g. title, issuing authority). Aim for 3–6
+              anchors.
             </p>
             {anchorIds.size === 0 ? (
               <p className="text-xs italic text-slate-400 dark:text-zinc-500">
@@ -768,7 +797,7 @@ export function DotsFieldMapper({
                   return (
                     <li
                       key={id}
-                      className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-white px-3 py-1.5 dark:border-amber-900/30 dark:bg-zinc-900"
+                      className="flex items-center justify-between gap-2 rounded-md border border-blue-200 bg-white px-3 py-1.5 dark:border-blue-900/30 dark:bg-zinc-900"
                     >
                       <span className="text-xs text-slate-700 dark:text-zinc-200 break-all">
                         {elem.text}
@@ -785,7 +814,12 @@ export function DotsFieldMapper({
                         aria-label={`Remove anchor "${elem.text}"`}
                         className="shrink-0 text-slate-300 hover:text-red-400 transition-colors dark:text-zinc-600"
                       >
-                        <svg viewBox="0 0 16 16" fill="none" className="h-4 w-4" aria-hidden>
+                        <svg
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className="h-4 w-4"
+                          aria-hidden
+                        >
                           <path
                             d="M3 8h10"
                             stroke="currentColor"
@@ -831,7 +865,12 @@ export function DotsFieldMapper({
                     aria-label={`Remove field ${f.key}`}
                     className="ml-3 shrink-0 text-slate-300 hover:text-red-400 transition-colors dark:text-zinc-600"
                   >
-                    <svg viewBox="0 0 16 16" fill="none" className="h-4 w-4" aria-hidden>
+                    <svg
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="h-4 w-4"
+                      aria-hidden
+                    >
                       <path
                         d="M3 8h10"
                         stroke="currentColor"

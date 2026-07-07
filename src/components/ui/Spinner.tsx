@@ -25,10 +25,10 @@ export default function Spinner({
       className={`flex items-center gap-3 ${className}`}
     >
       <span
-        className={`inline-block animate-spin rounded-full border-zinc-300 border-t-zinc-800 dark:border-zinc-700 dark:border-t-zinc-100 ${SIZES[size]}`}
+        className={`inline-block animate-spin rounded-full border-brand-silver border-t-brand-blue dark:border-blue/20 dark:border-t-brand-blue ${SIZES[size]}`}
       />
       {label ? (
-        <span className="text-sm text-zinc-600 dark:text-zinc-400">
+        <span className="text-sm text-brand-gray/70 dark:text-foreground/70">
           {label}
         </span>
       ) : (

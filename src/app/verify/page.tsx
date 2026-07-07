@@ -94,11 +94,11 @@ export default function VerifyPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+        <h1 className="text-2xl font-semibold tracking-tight text-brand-gray dark:text-foreground">
           Verify document
         </h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Pipeline: metadata → tampering → preprocessor → ocr → policy.
+        <p className="mt-1 text-sm text-brand-gray/60 dark:text-foreground/60">
+          metadata → tampering → preprocessor → ocr → policy.
         </p>
       </div>
 
@@ -106,38 +106,42 @@ export default function VerifyPage() {
         {/* ID + document type */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <span className="text-xs font-medium text-brand-black dark:text-foreground">
               ID <span className="text-red-500">*</span>
             </span>
             <input
               value={id}
               onChange={(e) => setId(e.target.value)}
               placeholder="request or document id"
-              className="h-9 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+              className="h-9 rounded-md border border-brand-silver bg-white px-3 text-sm outline-none focus:border-brand-blue dark:border-blue/10 dark:bg-white/5 dark:focus:border-brand-blue"
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <span className="text-xs font-medium text-brand-black dark:text-foreground">
               Document type{" "}
-              <span className="font-normal text-zinc-400">(optional)</span>
+              <span className="font-normal text-brand-gray/70 dark:text-foreground/70">
+                (optional)
+              </span>
             </span>
             <input
               value={documentType}
               onChange={(e) => setDocumentType(e.target.value)}
               placeholder="e.g. passport"
-              className="h-9 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+              className="h-9 rounded-md border border-brand-silver bg-white px-3 text-sm outline-none focus:border-brand-blue dark:border-blue/10 dark:bg-white/5 dark:focus:border-brand-blue"
             />
           </label>
         </div>
 
         {/* Declared identity */}
-        <div className="space-y-2 rounded-lg border border-black/[.08] p-4 dark:border-white/[.145]">
+        <div className="space-y-2 rounded-lg border border-brand-silver p-4 dark:border-blue/10">
           <div>
-            <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <p className="text-xs font-medium text-brand-black dark:text-foreground">
               Declared identity{" "}
-              <span className="font-normal text-zinc-400">(optional)</span>
+              <span className="font-normal text-brand-gray/70 dark:text-foreground/70">
+                (optional)
+              </span>
             </p>
-            <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">
+            <p className="mt-0.5 text-xs text-brand-gray/40 dark:text-foreground/40">
               These fields are optional. When provided, the pipeline
               cross-checks the declared identity against the data extracted from
               the document.
@@ -145,39 +149,39 @@ export default function VerifyPage() {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              <span className="text-xs font-medium text-brand-black dark:text-foreground">
                 Full name
               </span>
               <input
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="as on the document"
-                className="h-9 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+                className="h-9 rounded-md border border-brand-silver bg-white px-3 text-sm outline-none focus:border-brand-blue dark:border-blue/10 dark:bg-white/5 dark:focus:border-brand-blue"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              <span className="text-xs font-medium text-brand-black dark:text-foreground">
                 Date of birth
               </span>
               <input
                 type="date"
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
-                className="h-9 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+                className="h-9 rounded-md border border-brand-silver bg-white px-3 text-sm outline-none focus:border-brand-blue dark:border-blue/10 dark:bg-white/5 dark:focus:border-brand-blue"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              <span className="text-xs font-medium text-brand-black dark:text-foreground">
                 Gender
               </span>
               <select
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
-                className="h-9 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+                className="h-9 rounded-md border border-brand-silver bg-white px-3 text-sm outline-none focus:border-brand-blue dark:border-blue/10 dark:bg-white/5 dark:focus:border-brand-blue"
               >
-                <option value="">— select —</option>
-                <option value="F">F — Female</option>
-                <option value="M">M — Male</option>
+                <option value="">select</option>
+                <option value="F">Female</option>
+                <option value="M">Male</option>
                 <option value="OTHER">Other</option>
               </select>
             </label>
@@ -186,7 +190,7 @@ export default function VerifyPage() {
 
         {/* File upload */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="text-xs font-medium text-brand-black dark:text-foreground">
             Document images <span className="text-red-500">*</span>
           </label>
           <div
@@ -196,12 +200,14 @@ export default function VerifyPage() {
             onKeyDown={(e) =>
               e.key === "Enter" && fileInputRef.current?.click()
             }
-            className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-black/[.12] px-6 py-8 text-center transition-colors hover:border-black/[.3] dark:border-white/[.145] dark:hover:border-white/[.3]"
+            className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-brand-silver px-6 py-8 text-center transition-colors hover:border-brand-blue/50 hover:bg-brand-surface dark:border-blue/10 dark:hover:border-brand-blue/40"
           >
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-brand-black dark:text-foreground">
               Click to select one or more pages
             </p>
-            <p className="text-xs text-zinc-400">PNG, JPG, JPEG or PDF</p>
+            <p className="text-xs text-brand-gray/40 dark:text-foreground/40">
+              PNG, JPG, JPEG or PDF
+            </p>
           </div>
           <input
             ref={fileInputRef}
@@ -224,7 +230,7 @@ export default function VerifyPage() {
                 return (
                   <li
                     key={`${f.name}-${i}`}
-                    className="rounded-lg border border-black/[.08] dark:border-white/[.145]"
+                    className="rounded-lg border border-brand-silver dark:border-blue/10"
                   >
                     {/* File row */}
                     <div className="flex items-center gap-2 px-3 py-2 text-sm">
@@ -236,7 +242,7 @@ export default function VerifyPage() {
                           aria-label={
                             isOpen ? "Collapse preview" : "Expand preview"
                           }
-                          className="shrink-0 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-300"
+                          className="shrink-0 text-brand-gray/40 transition-colors hover:text-brand-blue dark:text-foreground/40 dark:hover:text-brand-blue"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -266,7 +272,7 @@ export default function VerifyPage() {
                           strokeWidth="1.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          className="shrink-0 text-zinc-400"
+                          className="shrink-0 text-brand-gray/40 dark:text-foreground/40"
                           aria-hidden="true"
                         >
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -274,18 +280,18 @@ export default function VerifyPage() {
                         </svg>
                       )}
 
-                      <span className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">
+                      <span className="min-w-0 flex-1 truncate text-brand-gray/80 dark:text-foreground/80">
                         {f.name}
                       </span>
 
-                      <span className="shrink-0 text-xs text-zinc-400">
+                      <span className="shrink-0 text-xs text-brand-gray/40 dark:text-foreground/40">
                         {(f.size / 1024).toFixed(0)} KB
                       </span>
                       <button
                         type="button"
                         onClick={() => removeFile(i)}
                         aria-label={`Remove ${f.name}`}
-                        className="shrink-0 text-zinc-400 transition-colors hover:text-red-500"
+                        className="shrink-0 text-brand-gray/40 transition-colors hover:text-red-500"
                       >
                         ✕
                       </button>
@@ -293,7 +299,7 @@ export default function VerifyPage() {
 
                     {/* Collapsible image preview */}
                     {isImage && isOpen && previewUrls[i] && (
-                      <div className="flex justify-center border-t border-black/[.06] px-3 pb-3 pt-2 dark:border-white/[.08]">
+                      <div className="flex justify-center border-t border-brand-silver/50 px-3 pb-3 pt-2 dark:border-blue/[.06]">
                         <img
                           src={previewUrls[i]}
                           alt={f.name}
@@ -314,12 +320,12 @@ export default function VerifyPage() {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="inline-flex h-10 w-fit items-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-10 w-fit items-center rounded-full bg-brand-blue px-6 text-sm font-medium text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-40"
           >
             {loading ? "Verifying…" : "Verify"}
           </button>
           {loading && (
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-brand-gray/40 dark:text-foreground/40">
               Running pipeline… this can take a while on the first call.
             </p>
           )}
