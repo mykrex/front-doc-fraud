@@ -36,10 +36,16 @@ interface OCRPageFull {
   fields?: Record<string, string | null>;
   flags?: string[];
 }
+interface Inconsistency {
+  field: string;
+  document_value: string | null;
+  packet_value: string | null;
+}
+
 interface ConsistencyVerification {
   consistency?: boolean;
-  identity_inconsistencies?: string[];
-  mrz_inconsistencies?: string[];
+  identity_inconsistencies?: Inconsistency[];
+  mrz_inconsistencies?: Inconsistency[];
 }
 
 export default function VerifyResultPage() {
@@ -402,7 +408,13 @@ function ConsistencyCard({ cv }: { cv: ConsistencyVerification }) {
   );
 }
 
-function IssueList({ title, items }: { title: string; items: string[] }) {
+function IssueList({
+  title,
+  items,
+}: {
+  title: string;
+  items: Inconsistency[];
+}) {
   return (
     <div>
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-gray/60 dark:text-foreground/60">
@@ -412,10 +424,17 @@ function IssueList({ title, items }: { title: string; items: string[] }) {
         {items.map((item, i) => (
           <li
             key={i}
-            className="flex gap-2 rounded-md bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-400"
+            className="rounded-md bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-400"
           >
-            <span>•</span>
-            <span>{item}</span>
+            <span className="font-medium">{item.field}</span>
+            <span className="ml-1 text-red-500 dark:text-red-500">—</span>
+            <span className="ml-1">
+              doc: <span className="font-mono">{item.document_value ?? "—"}</span>
+            </span>
+            <span className="mx-1 text-red-400">vs</span>
+            <span>
+              packet: <span className="font-mono">{item.packet_value ?? "—"}</span>
+            </span>
           </li>
         ))}
       </ul>
