@@ -152,7 +152,7 @@ function VerifyReport({
 
       {/* 2 — Metadata */}
       {metadataPages.length > 0 && (
-        <ReportCard title="Metadata">
+        <ReportCard title="Metadata" defaultOpen={false}>
           <div className="space-y-3">
             {metadataPages.map((page, i) => (
               <div key={i}>
@@ -178,7 +178,7 @@ function VerifyReport({
 
       {/* 3 — Tampering */}
       {tamperingPages.length > 0 && (
-        <ReportCard title="Tampering Analysis">
+        <ReportCard title="Tampering Analysis" defaultOpen={false}>
           <div className="space-y-6">
             {tamperingPages.map((page, i) => (
               <TamperingCard
@@ -194,7 +194,7 @@ function VerifyReport({
 
       {/* 4 — OCR / Extracted Fields */}
       {ocrPages.length > 0 && (
-        <ReportCard title="Extracted Document Fields">
+        <ReportCard title="Extracted Document Fields" defaultOpen={false}>
           <div className="space-y-6">
             {ocrPages.map((page, i) => (
               <OCRPageCard key={i} page={page} pageNumber={i + 1} />
@@ -205,7 +205,7 @@ function VerifyReport({
 
       {/* 5 — Consistency */}
       {consistency && (
-        <ReportCard title="Consistency Verification">
+        <ReportCard title="Consistency Verification" defaultOpen={false}>
           <ConsistencyCard cv={consistency} />
         </ReportCard>
       )}
@@ -372,8 +372,8 @@ function ConsistencyCard({ cv }: { cv: ConsistencyVerification }) {
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${
             consistent
-              ? "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400"
-              : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+              ? "bg-green-50 text-green-700 dark:bg-green-650/50 dark:text-green-400"
+              : "bg-red-50 text-red-700 dark:bg-red-650/50 dark:text-red-400"
           }`}
         >
           <span>{consistent ? "✓" : "✗"}</span>
@@ -508,11 +508,14 @@ function RiskLabelBadge({ label }: { label: string }) {
   let cls =
     "bg-brand-silver/50 text-brand-gray dark:bg-white/10 dark:text-foreground";
   if (upper === "LEGITIMATE" || upper === "ACCEPT") {
-    cls = "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400";
+    cls =
+      "border border-green-400 bg-green-50 text-green-700 dark:bg-green-550/40 dark:text-green-400";
   } else if (upper === "SUSPICIOUS" || upper === "REVIEW") {
-    cls = "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400";
+    cls =
+      "border border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-550/40 dark:text-amber-400";
   } else if (upper === "TAMPERED" || upper === "FORGED" || upper === "REJECT") {
-    cls = "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400";
+    cls =
+      "border border-red-400 bg-red-50 text-red-700 dark:bg-red-550/40 dark:text-red-400";
   }
 
   return (
