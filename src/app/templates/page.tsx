@@ -72,16 +72,16 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold tracking-tight text-brand-gray dark:text-foreground">
             Templates
           </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-brand-gray/70 dark:text-foreground/70">
             Reference templates used to guide document extraction.
           </p>
         </div>
         <Link
           href="/templates/new"
-          className="inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background transition-colors hover:opacity-90"
+          className="inline-flex h-10 items-center rounded-full bg-brand-blue px-5 text-sm font-medium text-white transition-colors hover:bg-brand-blue-dark"
         >
           New template
         </Link>
@@ -93,7 +93,7 @@ export default function TemplatesPage() {
         className="mt-6 flex flex-wrap items-end gap-3"
       >
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <span className="text-xs font-medium text-brand-black dark:text-foreground">
             Document type
           </span>
           <input
@@ -102,11 +102,11 @@ export default function TemplatesPage() {
               setDraft((p) => ({ ...p, document_type: e.target.value }))
             }
             placeholder="e.g. passport"
-            className="h-9 w-48 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+            className="h-9 w-48 rounded-md border border-brand-silver bg-white px-3 text-sm outline-none focus:border-brand-blue dark:border-blue/10 dark:bg-white/5 dark:focus:border-brand-blue"
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <span className="text-xs font-medium text-brand-black dark:text-foreground">
             Country
           </span>
           <input
@@ -115,12 +115,12 @@ export default function TemplatesPage() {
               setDraft((p) => ({ ...p, country: e.target.value }))
             }
             placeholder="e.g. Mexico"
-            className="h-9 w-48 rounded-md border border-black/[.12] bg-white px-3 text-sm outline-none focus:border-black/[.3] dark:border-white/[.145] dark:bg-black dark:focus:border-white/[.3]"
+            className="h-9 w-48 rounded-md border border-brand-silver bg-white px-3 text-sm outline-none focus:border-brand-blue dark:border-blue/10 dark:bg-white/5 dark:focus:border-brand-blue"
           />
         </label>
         <button
           type="submit"
-          className="h-9 rounded-full border border-black/[.12] px-4 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-white/[.06]"
+          className="h-9 rounded-full border border-brand-silver px-4 text-sm font-medium transition-colors hover:border-brand-blue hover:text-brand-blue dark:border-blue/10 dark:hover:border-brand-blue dark:hover:text-brand-blue"
         >
           Apply
         </button>
@@ -128,7 +128,7 @@ export default function TemplatesPage() {
           <button
             type="button"
             onClick={clearFilters}
-            className="h-9 px-2 text-sm text-zinc-500 transition-colors hover:text-black dark:hover:text-zinc-50"
+            className="h-9 px-2 text-sm text-brand-gray/60 transition-colors hover:text-brand-blue-dark dark:text-foreground/60 dark:hover:text-foreground"
           >
             Clear
           </button>
@@ -160,14 +160,14 @@ export default function TemplatesPage() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="inline-flex h-10 items-center rounded-full border border-black/[.12] px-5 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-white/[.06]"
+                  className="inline-flex h-10 items-center rounded-full border border-brand-silver px-5 text-sm font-medium transition-colors hover:border-brand-blue hover:text-brand-blue dark:border-blue/10 dark:hover:border-brand-blue"
                 >
                   Clear filters
                 </button>
               ) : (
                 <Link
                   href="/templates/new"
-                  className="inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background transition-colors hover:opacity-90"
+                  className="inline-flex h-10 items-center rounded-full bg-brand-blue px-5 text-sm font-medium text-white transition-colors hover:bg-brand-blue-dark"
                 >
                   New template
                 </Link>

@@ -17,16 +17,18 @@ export default function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-lg border border-dashed border-black/[.12] px-6 py-12 text-center dark:border-white/[.145] ${className}`}
+      className={`flex flex-col items-center justify-center rounded-lg border border-dashed border-brand-silver px-6 py-12 text-center dark:border-blue/10 ${className}`}
     >
       {icon ? (
-        <div className="mb-4 text-zinc-400 dark:text-zinc-500">{icon}</div>
+        <div className="mb-4 text-brand-gray/40 dark:text-foreground/40">
+          {icon}
+        </div>
       ) : null}
-      <h3 className="text-base font-semibold text-black dark:text-zinc-50">
+      <h3 className="text-base font-semibold text-brand-gray dark:text-foreground">
         {title}
       </h3>
       {description ? (
-        <p className="mt-1 max-w-sm text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-1 max-w-sm text-sm text-brand-gray/70 dark:text-foreground/70">
           {description}
         </p>
       ) : null}

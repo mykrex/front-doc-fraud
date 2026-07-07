@@ -16,7 +16,7 @@ import type { FieldSuggestion, TemplateField } from "@/lib/types";
 
 const CONFIDENCE_STYLES: Record<string, string> = {
   high: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  medium: "bg-amber-50  text-amber-700  border-amber-200",
+  medium: "bg-blue-50  text-blue-700  border-blue-200",
   low: "bg-slate-50  text-slate-500  border-slate-200",
 };
 

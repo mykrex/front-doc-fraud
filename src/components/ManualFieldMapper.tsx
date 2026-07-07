@@ -92,9 +92,9 @@ type Phase = "label" | "value";
 type InteractionMode = "field" | "anchor" | "image";
 
 type LineVisual =
-  | "image_active"    // in imageIds (confirmed photo region)
+  | "image_active" // in imageIds (confirmed photo region)
   | "image_discarded" // role === "image" but removed by user
-  | "anchor"          // in anchorIds
+  | "anchor" // in anchorIds
   | "selected_label"
   | "selected_value"
   | "used"
@@ -130,15 +130,17 @@ function getOverlayCls(
     case "image_active":
       return (
         base +
-        "border-2 border-dashed border-violet-500 bg-violet-400/10 " +
-        (clickable ? "cursor-pointer hover:bg-violet-400/20" : "cursor-default")
+        "border-2 border-dashed border-brand-purple bg-brand-purple/10 " +
+        (clickable
+          ? "cursor-pointer hover:bg-brand-purple/20"
+          : "cursor-default")
       );
     case "image_discarded":
       return (
         base +
-        "border border-dashed border-blue-300/50 opacity-40 " +
+        "border border-dashed border-brand-silver/50 opacity-40 " +
         (clickable
-          ? "cursor-pointer hover:opacity-70 hover:border-violet-400"
+          ? "cursor-pointer hover:opacity-70 hover:border-brand-purple/60"
           : "cursor-default")
       );
     case "anchor":
@@ -150,7 +152,7 @@ function getOverlayCls(
     case "selected_label":
       return (
         base +
-        "border-2 border-blue-500 bg-blue-400/25 cursor-pointer ring-1 ring-blue-400"
+        "border-2 border-brand-blue bg-brand-blue/25 cursor-pointer ring-1 ring-brand-blue/60"
       );
     case "selected_value":
       return (
@@ -160,24 +162,24 @@ function getOverlayCls(
     case "used":
       return (
         base +
-        "border border-slate-300/40 bg-slate-100/10 opacity-40 cursor-default"
+        "border border-brand-silver/40 bg-brand-silver/10 opacity-40 cursor-default"
       );
     case "available":
       if (!clickable)
-        return base + "border border-slate-200/20 opacity-20 cursor-default";
+        return base + "border border-brand-silver/20 opacity-20 cursor-default";
       if (mode === "anchor")
         return (
           base +
-          "border border-slate-300/60 hover:border-amber-400 hover:bg-amber-100/15 cursor-pointer"
+          "border border-brand-silver/60 hover:border-amber-400 hover:bg-amber-100/15 cursor-pointer"
         );
       if (mode === "image")
         return (
           base +
-          "border border-slate-300/60 hover:border-violet-400 hover:bg-violet-100/15 cursor-pointer"
+          "border border-brand-silver/60 hover:border-brand-purple/60 hover:bg-brand-purple/10 cursor-pointer"
         );
       return (
         base +
-        "border border-slate-300/60 hover:border-blue-400 hover:bg-blue-100/15 cursor-pointer"
+        "border border-brand-silver/60 hover:border-brand-blue/60 hover:bg-brand-blue/10 cursor-pointer"
       );
   }
 }
@@ -208,8 +210,8 @@ export function ManualFieldMapper({
 
   // ---- anchor + image region state ----
   const [anchorIds, setAnchorIds] = useState<Set<number>>(new Set());
-  const [imageIds, setImageIds] = useState<Set<number>>(() =>
-    new Set(ocrLines.filter((l) => l.role === "image").map((l) => l.id)),
+  const [imageIds, setImageIds] = useState<Set<number>>(
+    () => new Set(ocrLines.filter((l) => l.role === "image").map((l) => l.id)),
   );
 
   // Report pre-classified image regions once on mount so the parent starts
@@ -364,7 +366,10 @@ export function ManualFieldMapper({
     const errors: { label?: string } = {};
     if (!form.label.trim()) errors.label = "Label name is required.";
     if (!effectiveValueIds.length) return;
-    if (errors.label) { setFormErrors(errors); return; }
+    if (errors.label) {
+      setFormErrors(errors);
+      return;
+    }
 
     const key = generateKey(form.label, existingKeys);
     const newField: TemplateField = {
@@ -427,7 +432,8 @@ export function ManualFieldMapper({
         )
           return false;
         if (phase === "value" && noVisibleLabel) return false;
-        if (phase === "value" && pendingLabelIds.includes(line.id)) return false;
+        if (phase === "value" && pendingLabelIds.includes(line.id))
+          return false;
         return true;
     }
   }
@@ -450,7 +456,7 @@ export function ManualFieldMapper({
           <img
             src={imageUrl}
             alt="Preprocessed document"
-            className="block w-full rounded-lg border border-slate-200 shadow-sm dark:border-zinc-800"
+            className="block w-full rounded-lg border border-brand-silver shadow-sm dark:border-blue/10"
             draggable={false}
           />
 
@@ -458,8 +464,7 @@ export function ManualFieldMapper({
           {fields.map((f) => {
             const lRect = enclosingRect(f.label_element_ids ?? [], ocrLines);
             const vRect = enclosingRect(f.value_element_ids ?? [], ocrLines);
-            const sameRegion =
-              JSON.stringify(lRect) === JSON.stringify(vRect);
+            const sameRegion = JSON.stringify(lRect) === JSON.stringify(vRect);
             return (
               <Fragment key={f.key}>
                 {lRect && (
@@ -561,7 +566,7 @@ export function ManualFieldMapper({
         </div>
 
         {ocrLines.length === 0 && (
-          <p className="mt-3 text-center text-sm text-slate-400 dark:text-zinc-500">
+          <p className="mt-3 text-center text-sm text-brand-gray/40 dark:text-foreground/40">
             No OCR lines detected in this document.
           </p>
         )}
@@ -572,7 +577,7 @@ export function ManualFieldMapper({
       {/* ------------------------------------------------------------------ */}
       <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
         {/* Mode toggle */}
-        <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex rounded-lg border border-brand-silver bg-brand-surface p-1 gap-1 dark:border-blue/10 dark:bg-white/5">
           {(
             [
               { mode: "field" as const, label: "Map fields" },
@@ -596,11 +601,11 @@ export function ManualFieldMapper({
                   "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
                   active
                     ? mode === "field"
-                      ? "bg-indigo-600 text-white shadow-sm"
+                      ? "bg-brand-blue text-white shadow-sm"
                       : mode === "anchor"
                         ? "bg-amber-500 text-white shadow-sm"
-                        : "bg-violet-600 text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+                        : "bg-brand-purple text-white shadow-sm"
+                    : "text-brand-gray/60 hover:text-brand-gray dark:text-foreground/60 dark:hover:text-foreground",
                 ].join(" ")}
               >
                 {label}
@@ -610,7 +615,7 @@ export function ManualFieldMapper({
                       "ml-1 rounded-full px-1 text-xs",
                       active
                         ? "bg-white/20"
-                        : "bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300",
+                        : "bg-brand-silver/30 text-brand-gray dark:bg-white/10 dark:text-foreground/70",
                     ].join(" ")}
                   >
                     {count}
@@ -625,13 +630,13 @@ export function ManualFieldMapper({
         {interactionMode === "field" && (
           <>
             {/* Phase status card */}
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1 dark:text-zinc-400">
+            <div className="rounded-lg border border-brand-silver bg-brand-surface px-4 py-3 dark:border-blue/10 dark:bg-white/5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-black mb-1 dark:text-foreground">
                 {phase === "label"
                   ? "Step 1 — Select label elements"
                   : "Step 2 — Select value elements"}
               </p>
-              <p className="text-sm text-slate-600 dark:text-zinc-300">
+              <p className="text-sm text-brand-gray/70 dark:text-foreground/70">
                 {phase === "label"
                   ? pendingLabelIds.length === 0
                     ? "Click on a text block in the image to mark it as the field label. You can select multiple blocks."
@@ -664,11 +669,11 @@ export function ManualFieldMapper({
                     />
                   )}
                   {noVisibleLabel && (
-                    <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 dark:border-amber-900 dark:bg-amber-950/20">
-                      <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                    <div className="flex items-center gap-2 rounded-md border border-brand-silver bg-brand-surface-alt px-3 py-1.5 dark:border-blue/10 dark:bg-gray/5">
+                      <span className="text-xs font-semibold text-brand-gray/70 dark:text-foreground/70">
                         No visible label
                       </span>
-                      <span className="text-xs text-amber-600 dark:text-amber-500">
+                      <span className="text-xs text-brand-gray/50 dark:text-foreground/50">
                         — label = value element(s)
                       </span>
                     </div>
@@ -686,10 +691,10 @@ export function ManualFieldMapper({
                   onClick={handleContinueToValue}
                   className={[
                     "rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors",
-                    "focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                    "focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-1",
                     pendingLabelIds.length === 0
-                      ? "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
-                      : "bg-indigo-600 hover:bg-indigo-700",
+                      ? "bg-brand-silver text-brand-gray/40 cursor-not-allowed dark:bg-white/10 dark:text-foreground/40"
+                      : "bg-brand-blue hover:bg-brand-blue-dark",
                   ].join(" ")}
                 >
                   Continue to value →
@@ -701,7 +706,7 @@ export function ManualFieldMapper({
                   <button
                     type="button"
                     onClick={handleBackToLabel}
-                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors dark:border-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-100"
+                    className="rounded-lg border border-brand-silver px-4 py-2 text-sm text-brand-gray/60 hover:text-brand-gray transition-colors dark:border-blue/10 dark:text-foreground/60 dark:hover:text-foreground"
                   >
                     ← Back to label
                   </button>
@@ -709,7 +714,7 @@ export function ManualFieldMapper({
                     <button
                       type="button"
                       onClick={handleNoVisibleLabel}
-                      className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 hover:bg-amber-100 transition-colors dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-400"
+                      className="rounded-lg border border-brand-silver bg-brand-surface px-4 py-2 text-sm text-brand-gray/70 hover:bg-brand-surface-alt hover:text-brand-gray transition-colors dark:border-blue/10 dark:bg-white/5 dark:text-foreground/60 dark:hover:text-foreground"
                     >
                       No visible label
                     </button>
@@ -727,10 +732,10 @@ export function ManualFieldMapper({
                   onClick={handleAddField}
                   className={[
                     "rounded-md px-4 py-1.5 text-sm font-medium text-white transition-colors",
-                    "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+                    "focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-1",
                     canAdd
-                      ? "bg-indigo-600 hover:bg-indigo-700"
-                      : "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500",
+                      ? "bg-brand-blue hover:bg-brand-blue-dark"
+                      : "bg-brand-silver text-brand-gray/40 cursor-not-allowed dark:bg-white/10 dark:text-foreground/40",
                   ].join(" ")}
                 >
                   Add field
@@ -740,14 +745,14 @@ export function ManualFieldMapper({
 
             {/* Add field form (value phase, no visible label) */}
             {phase === "value" && noVisibleLabel && (
-              <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-4 space-y-3 dark:border-indigo-900/60 dark:bg-indigo-950/20">
-                <p className="text-sm font-medium text-slate-700 dark:text-zinc-200">
+              <div className="rounded-lg border border-brand-blue/20 bg-brand-surface/60 p-4 space-y-3 dark:border-brand-blue/15 dark:bg-brand-blue/5">
+                <p className="text-sm font-medium text-brand-gray dark:text-foreground">
                   Field details
                 </p>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-300">
+                  <label className="text-xs font-medium text-brand-gray/70 dark:text-foreground/70">
                     Label name{" "}
-                    <span className="font-normal text-amber-600 dark:text-amber-400">
+                    <span className="font-normal text-blue-600 dark:text-blue-400">
                       (required — no OCR label)
                     </span>
                   </label>
@@ -761,11 +766,11 @@ export function ManualFieldMapper({
                     placeholder="e.g. Visa Number"
                     className={[
                       "w-full rounded-md border px-3 py-1.5 text-sm",
-                      "focus:outline-none focus:ring-2 focus:ring-indigo-500",
-                      "dark:text-zinc-100 dark:placeholder:text-zinc-500",
+                      "focus:outline-none focus:ring-2 focus:ring-brand-blue",
+                      "dark:text-foreground dark:placeholder:text-foreground/40",
                       formErrors.label
                         ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30"
-                        : "border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-900",
+                        : "border-brand-silver bg-white dark:border-blue/10 dark:bg-white/5",
                     ].join(" ")}
                   />
                   {formErrors.label && (
@@ -781,10 +786,10 @@ export function ManualFieldMapper({
                     onClick={handleAddField}
                     className={[
                       "rounded-md px-4 py-1.5 text-sm font-medium text-white transition-colors",
-                      "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+                      "focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-1",
                       canAdd
-                        ? "bg-indigo-600 hover:bg-indigo-700"
-                        : "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500",
+                        ? "bg-brand-blue hover:bg-brand-blue-dark"
+                        : "bg-brand-silver text-brand-gray/40 cursor-not-allowed dark:bg-white/10 dark:text-foreground/40",
                     ].join(" ")}
                   >
                     Add field
@@ -796,7 +801,7 @@ export function ManualFieldMapper({
             {/* Mapped fields list */}
             {fields.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-gray/60 dark:text-foreground/60">
                   Mapped fields ({fields.length})
                 </p>
                 <ul className="space-y-1.5">
@@ -807,17 +812,17 @@ export function ManualFieldMapper({
                     return (
                       <li
                         key={f.key}
-                        className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+                        className="flex items-center justify-between rounded-lg border border-brand-silver bg-white px-3 py-2 dark:border-blue/10 dark:bg-white/5"
                       >
                         <div className="min-w-0">
-                          <span className="text-sm font-medium text-slate-800 dark:text-zinc-100">
+                          <span className="text-sm font-medium text-brand-gray dark:text-foreground">
                             {f.label}
                           </span>
-                          <span className="ml-2 font-mono text-xs text-slate-400 dark:text-zinc-500">
+                          <span className="ml-2 font-mono text-xs text-brand-gray/40 dark:text-foreground/40">
                             {f.key}
                           </span>
                           {isLabelless && (
-                            <span className="ml-1.5 rounded bg-amber-100 px-1 py-0.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                            <span className="ml-1.5 rounded bg-blue-100 px-1 py-0.5 text-xs text-blue-700 dark:bg-blue-750/30 dark:text-blue-400">
                               no label
                             </span>
                           )}
@@ -826,7 +831,7 @@ export function ManualFieldMapper({
                           type="button"
                           onClick={() => handleRemoveField(f.key)}
                           aria-label={`Remove field ${f.key}`}
-                          className="ml-3 shrink-0 text-slate-300 hover:text-red-400 transition-colors dark:text-zinc-600"
+                          className="ml-3 shrink-0 text-brand-silver hover:text-red-400 transition-colors dark:text-foreground/30"
                         >
                           <svg
                             viewBox="0 0 16 16"
@@ -854,28 +859,28 @@ export function ManualFieldMapper({
         {/* ---- Anchor mode ---- */}
         {interactionMode === "anchor" && (
           <div className="space-y-3">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1 dark:text-zinc-400">
+            <div className="rounded-lg border border-brand-silver bg-brand-surface px-4 py-3 dark:border-blue/10 dark:bg-white/5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-gray/60 mb-1 dark:text-foreground/60">
                 Anchor marking
               </p>
-              <p className="text-sm text-slate-600 dark:text-zinc-300">
-                Click text blocks that appear verbatim on every document of
-                this type — e.g. &ldquo;PASAPORTE&rdquo;,
-                &ldquo;REPÚBLICA MEXICANA&rdquo;. These help the pipeline
-                locate fields reliably. Click again to deselect.
+              <p className="text-sm text-brand-gray/70 dark:text-foreground/70">
+                Click text blocks that appear verbatim on every document of this
+                type — e.g. &ldquo;PASAPORTE&rdquo;, &ldquo;REPÚBLICA
+                MEXICANA&rdquo;. These help the pipeline locate fields reliably.
+                Click again to deselect.
               </p>
             </div>
 
             {anchorTexts.length > 0 ? (
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-gray/60 dark:text-foreground/60">
                   Anchors ({anchorTexts.length})
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {anchorTexts.map((text, i) => (
                     <span
                       key={i}
-                      className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300"
+                      className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-500/40 dark:bg-amber-200/30 dark:text-amber-500"
                     >
                       {text}
                     </span>
@@ -883,7 +888,7 @@ export function ManualFieldMapper({
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-slate-400 dark:text-zinc-500">
+              <p className="text-sm text-brand-gray/40 dark:text-foreground/40">
                 No anchors marked yet. Click fixed text on the image.
               </p>
             )}
@@ -893,18 +898,18 @@ export function ManualFieldMapper({
         {/* ---- Image mode ---- */}
         {interactionMode === "image" && (
           <div className="space-y-3">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1 dark:text-zinc-400">
+            <div className="rounded-lg border border-brand-silver bg-brand-surface px-4 py-3 dark:border-blue/10 dark:bg-white/5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-gray/60 mb-1 dark:text-foreground/60">
                 Photo regions
               </p>
-              <p className="text-sm text-slate-600 dark:text-zinc-300">
+              <p className="text-sm text-brand-gray/70 dark:text-foreground/70">
                 Regions detected as photos (violet dashed border) are
-                pre-selected. Click to remove a region or to add a new one.
-                Text regions can also be added if needed.
+                pre-selected. Click to remove a region or to add a new one. Text
+                regions can also be added if needed.
               </p>
             </div>
 
-            <p className="text-sm text-slate-600 dark:text-zinc-300">
+            <p className="text-sm text-brand-gray/70 dark:text-foreground/70">
               <span className="font-semibold">{imageIds.size}</span> region
               {imageIds.size !== 1 ? "s" : ""} selected.
             </p>
@@ -930,8 +935,8 @@ function SelectedBadge({
 }) {
   const colorCls =
     color === "blue"
-      ? "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300"
-      : "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300";
+      ? "border-brand-blue/30 bg-brand-surface text-brand-blue-dark dark:border-brand-blue/30 dark:bg-brand-blue/10 dark:text-brand-blue"
+      : "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-300 dark:text-emerald-500";
 
   return (
     <div

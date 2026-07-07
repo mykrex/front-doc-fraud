@@ -2,21 +2,23 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #353535;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-blue: #3781c2;
+  --color-brand-blue-dark: #284b63;
+  --color-brand-blue-deep: #05668d;
+  --color-brand-purple: #662e9b;
+  --color-brand-teal: #3c6e71;
+  --color-brand-gray: #353535;
+  --color-brand-silver: #7a95ab;
+  --color-brand-surface: #eef4fb;
+  --color-brand-surface-alt: #f3f7fc;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
