@@ -652,7 +652,7 @@ export default function NewTemplatePage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(0,300px)]">
             {/* Image with overlays */}
-            <div className="relative inline-block w-full select-none">
+            <div className="relative w-full select-none self-start overflow-hidden rounded-lg">
               <img
                 src={preprocessedImageUrl}
                 alt="Region preview"
