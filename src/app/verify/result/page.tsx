@@ -20,9 +20,17 @@ const STORAGE_KEY = "docfraud:verify_result";
 type StoredResult = { result: BaseVerifyResponse; id: string };
 
 // Detailed shapes the backend actually returns (types.ts keeps these loose)
+interface FlagObject {
+  code: string;
+  severity?: string;
+  category?: string;
+  evidence?: string;
+}
+type FlagItem = string | FlagObject;
+
 interface MetadataPage {
   summary?: string;
-  flags?: string[];
+  flags?: FlagItem[];
   suspicion_score?: number;
 }
 interface TamperingPageFull {
@@ -34,7 +42,8 @@ interface OCRPageFull {
   page_number?: number;
   document_type?: string;
   fields?: Record<string, string | null>;
-  flags?: string[];
+  flags?: FlagItem[];
+  risk_score?: number;
 }
 interface Inconsistency {
   field: string;
@@ -146,7 +155,7 @@ function VerifyReport({
         </div>
         {result.flags.length > 0 && (
           <div className="mt-4">
-            <FlagList flags={result.flags} />
+            <FlagList flags={result.flags as FlagItem[]} />
           </div>
         )}
         {result.flags.length === 0 && (
@@ -162,6 +171,15 @@ function VerifyReport({
           <div className="space-y-3">
             {metadataPages.map((page, i) => (
               <div key={i}>
+                {page.suspicion_score != null && (
+                  <div className="mb-3">
+                    <ScorePill
+                      label="Suspicion Score"
+                      value={page.suspicion_score}
+                      colorize
+                    />
+                  </div>
+                )}
                 {page.summary && (
                   <p className="text-sm text-brand-gray/80 dark:text-foreground/80">
                     {page.summary}
@@ -309,11 +327,14 @@ function OCRPageCard({ page }: { page: OCRPageFull; pageNumber: number }) {
   return (
     <div className="space-y-3">
       {/* Header info */}
-      <div className="flex flex-wrap gap-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
         {page.document_type && (
-          <span className="rounded-full bg-brand-silver/50 px-3 py-0.5 font-medium capitalize text-brand-gray dark:bg-white/10 dark:text-foreground">
+          <span className="border border-brand-blue-deep/80 rounded-full bg-brand-silver/50 px-3 py-0.5 font-medium capitalize text-brand-gray dark:bg-white/10 dark:text-foreground">
             {page.document_type}
           </span>
+        )}
+        {page.risk_score != null && (
+          <ScorePill label="Risk Score" value={page.risk_score} colorize />
         )}
       </div>
 
@@ -429,11 +450,13 @@ function IssueList({
             <span className="font-medium">{item.field}</span>
             <span className="ml-1 text-red-500 dark:text-red-500">—</span>
             <span className="ml-1">
-              doc: <span className="font-mono">{item.document_value ?? "—"}</span>
+              doc:{" "}
+              <span className="font-mono">{item.document_value ?? "—"}</span>
             </span>
             <span className="mx-1 text-red-400">vs</span>
             <span>
-              packet: <span className="font-mono">{item.packet_value ?? "—"}</span>
+              packet:{" "}
+              <span className="font-mono">{item.packet_value ?? "—"}</span>
             </span>
           </li>
         ))}
@@ -555,7 +578,7 @@ function ReliabilityBadge({ reliability }: { reliability: string }) {
       "border-green-200 text-green-700 dark:border-green-800 dark:text-green-400";
   } else if (upper === "MEDIUM") {
     cls =
-      "border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-400";
+      "border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-100";
   } else if (upper === "LOW") {
     cls = "border-red-200 text-red-700 dark:border-red-800 dark:text-red-400";
   }
@@ -569,18 +592,32 @@ function ReliabilityBadge({ reliability }: { reliability: string }) {
   );
 }
 
-function FlagList({ flags }: { flags: string[] }) {
+function FlagList({ flags }: { flags: FlagItem[] }) {
   if (flags.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2">
-      {flags.map((flag) => (
-        <span
-          key={flag}
-          className="rounded-full border border-amber-200 bg-amber-50 px-3 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
-        >
-          {flag}
-        </span>
-      ))}
+      {flags.map((flag, i) => {
+        const label = typeof flag === "string" ? flag : flag.code;
+        const severity =
+          typeof flag === "string" ? undefined : flag.severity?.toUpperCase();
+        let cls =
+          "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/50 dark:bg-amber-550/30 dark:text-amber-300";
+        if (severity === "HIGH" || severity === "CRITICAL") {
+          cls =
+            "border-red-200 bg-red-50 text-red-700 dark:border-red-400/50 dark:bg-red-550/30 dark:text-red-300";
+        } else if (severity === "LOW" || severity === "INFO") {
+          cls =
+            "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/50 dark:bg-blue-550/30 dark:text-blue-300";
+        }
+        return (
+          <span
+            key={`${label}-${i}`}
+            className={`rounded-full border px-3 py-0.5 text-xs font-medium ${cls}`}
+          >
+            {label}
+          </span>
+        );
+      })}
     </div>
   );
 }
