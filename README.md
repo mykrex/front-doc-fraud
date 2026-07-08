@@ -1,50 +1,50 @@
 # front-doc-fraud
 
-Frontend Next.js para el sistema de detección de fraude documental (`api-doc-fraud`). Permite verificar documentos a través del pipeline de fraud detection y gestionar las plantillas OCR que el pipeline usa para extraer campos.
+Next.js frontend for the `api-doc-fraud` document fraud detection system. Allows verifying documents through the fraud detection pipeline and managing the OCR templates the pipeline uses to extract fields.
 
 ---
 
-## Índice
+## Table of Contents
 
-- [Requisitos](#requisitos)
-- [Inicio rápido](#inicio-rápido)
-- [Variables de entorno](#variables-de-entorno)
-- [Estructura del proyecto](#estructura-del-proyecto)
-- [Rutas y páginas](#rutas-y-páginas)
-- [Capa API](#capa-api)
-- [Tipos compartidos](#tipos-compartidos)
-- [Componentes](#componentes)
-- [Design system](#design-system)
-- [Notas de desarrollo](#notas-de-desarrollo)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Environment Variables](#environment-variables)
+- [Project Structure](#project-structure)
+- [Routes and Pages](#routes-and-pages)
+- [API Layer](#api-layer)
+- [Shared Types](#shared-types)
+- [Components](#components)
+- [Design System](#design-system)
+- [Development Notes](#development-notes)
 
 ---
 
-## Requisitos
+## Requirements
 
 - Node.js 18+
-- Backend `api-doc-fraud` corriendo (por defecto en `http://localhost:8000`)
+- `api-doc-fraud` backend running (default at `http://localhost:8000`)
 
 ---
 
-## Inicio rápido
+## Quick Start
 
 ```bash
 npm install
-npm run dev        # dev server en http://localhost:3000
-npm run build      # build de producción
-npm run start      # servidor de producción
+npm run dev        # dev server at http://localhost:3000
+npm run build      # production build
+npm run start      # production server
 npm run lint       # ESLint
 ```
 
 ---
 
-## Variables de entorno
+## Environment Variables
 
-| Variable | Default | Descripción |
+| Variable | Default | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Base URL del backend. Sin trailing slash. |
+| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Backend base URL. No trailing slash. |
 
-Crear un archivo `.env.local` en la raíz:
+Create a `.env.local` file at the root:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
@@ -52,30 +52,30 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 
 ---
 
-## Estructura del proyecto
+## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── layout.tsx              # Layout raíz — Geist font + Navbar
-│   ├── page.tsx                # / — Landing con links a verify y templates
+│   ├── layout.tsx              # Root layout — Geist font + Navbar
+│   ├── page.tsx                # / — Landing with links to verify and templates
 │   ├── verify/
-│   │   ├── page.tsx            # /verify — Formulario de verificación
+│   │   ├── page.tsx            # /verify — Verification form
 │   │   └── result/
-│   │       └── page.tsx        # /verify/result — Reporte detallado
+│   │       └── page.tsx        # /verify/result — Detailed report
 │   └── templates/
-│       ├── page.tsx            # /templates — Listado con filtros
+│       ├── page.tsx            # /templates — List with filters
 │       ├── new/
-│       │   └── page.tsx        # /templates/new — Wizard 4 pasos (modo manual)
+│       │   └── page.tsx        # /templates/new — 4-step wizard (manual mode)
 │       └── [id]/
-│           └── page.tsx        # /templates/:id — Detalle de plantilla
+│           └── page.tsx        # /templates/:id — Template detail
 ├── components/
-│   ├── ManualFieldMapper.tsx   # Mapeo OCR interactivo (modo manual)
-│   ├── DotsFieldMapper.tsx     # Mapeo OCR interactivo (modo dots)
-│   ├── SuggestionList.tsx      # Panel de sugerencias del servidor
-│   ├── AddFieldForm.tsx        # Formulario inline para agregar campo manual
-│   ├── TemplateCard.tsx        # Card de resumen de plantilla
-│   ├── VerdictBadge.tsx        # Badge ACCEPT / REVIEW / REJECT
+│   ├── ManualFieldMapper.tsx   # Interactive OCR mapping (manual mode)
+│   ├── DotsFieldMapper.tsx     # Interactive OCR mapping (dots mode)
+│   ├── SuggestionList.tsx      # Server-side suggestions panel
+│   ├── AddFieldForm.tsx        # Inline form to add a field manually
+│   ├── TemplateCard.tsx        # Template summary card
+│   ├── VerdictBadge.tsx        # ACCEPT / REVIEW / REJECT badge
 │   ├── layout/
 │   │   └── Navbar.tsx
 │   └── ui/
@@ -83,116 +83,116 @@ src/
 │       ├── ErrorMessage.tsx
 │       └── EmptyState.tsx
 └── lib/
-    ├── api.ts                  # Todas las llamadas al backend
-    └── types.ts                # Tipos TypeScript (espejo de los schemas del backend)
+    ├── api.ts                  # All backend calls
+    └── types.ts                # TypeScript types (mirrors backend Pydantic schemas)
 ```
 
 ---
 
-## Rutas y páginas
+## Routes and Pages
 
 ### `/` — Landing
 
-Página estática con dos cards de navegación: verificar un documento y gestionar plantillas.
+Static page with two navigation cards: verify a document and manage templates.
 
 ---
 
-### `/verify` — Formulario de verificación
+### `/verify` — Verification Form
 
-Sube uno o más archivos de documento y corre el pipeline de fraud detection.
+Uploads one or more document files and runs the fraud detection pipeline.
 
-**Campos del formulario:**
+**Form fields:**
 
-| Campo | Tipo | Requerido | Descripción |
+| Field | Type | Required | Description |
 |---|---|---|---|
-| Document images | Archivos (PNG/JPG/JPEG/PDF) | Sí | Páginas del documento |
-| ID | Texto | Sí | ID de solicitud o documento |
-| Document type | Texto | No | e.g. `passport` |
-| Full name | Texto | No | Para validación de consistencia |
-| Date of birth | Fecha | No | `YYYY-MM-DD` |
+| Document images | Files (PNG/JPG/JPEG/PDF) | Yes | Document pages |
+| ID | Text | Yes | Request or document ID |
+| Document type | Text | No | e.g. `passport` |
+| Full name | Text | No | For consistency validation |
+| Date of birth | Date | No | `YYYY-MM-DD` |
 | Gender | Select (F/M/OTHER) | No | |
 
-**Flujo:** Al enviar, llama a `POST /v1/verify`, serializa el resultado en `sessionStorage["docfraud:verify_result"]` y navega a `/verify/result`.
+**Flow:** On submit, calls `POST /v1/verify`, serializes the result to `sessionStorage["docfraud:verify_result"]`, and navigates to `/verify/result`.
 
 ---
 
-### `/verify/result` — Reporte
+### `/verify/result` — Report
 
-Lee el resultado de `sessionStorage`. Si no existe, redirige a `/verify`.
+Reads the result from `sessionStorage`. Redirects to `/verify` if missing.
 
-Secciones del reporte (todas colapsables):
+Report sections (all collapsible):
 
-1. **Summary** — Veredicto, risk score, confidence, flags
-2. **Metadata** — Suspicion score + análisis por archivo
-3. **Tampering Analysis** — Risk label + fraud score + heatmap overlay por página
-4. **Extracted Document Fields** — Campos OCR extraídos en tabla key-value + flags
-5. **Consistency Verification** — Inconsistencias de identidad y MRZ (`field` / `document_value` / `packet_value`)
-6. **Raw JSON** — Respuesta completa del backend
-
----
-
-### `/templates` — Listado de plantillas
-
-Carga con `GET /v1/templates`. Filtros: `document_type` y `country`. Resultados en grid de `TemplateCard`.
+1. **Summary** — Verdict, risk score, confidence, flags
+2. **Metadata** — Suspicion score + analysis per file
+3. **Tampering Analysis** — Risk label + fraud score + heatmap overlay per page
+4. **Extracted Document Fields** — OCR-extracted fields in a key-value table + flags
+5. **Consistency Verification** — Identity and MRZ inconsistencies (`field` / `document_value` / `packet_value`)
+6. **Raw JSON** — Full backend response
 
 ---
 
-### `/templates/new` — Wizard de nueva plantilla (modo manual)
+### `/templates` — Template List
 
-Pipeline generate → confirm en 4 pasos:
+Fetches from `GET /v1/templates`. Filters: `document_type` and `country`. Results displayed in a `TemplateCard` grid.
 
-| Paso | Qué hace |
+---
+
+### `/templates/new` — New Template Wizard (manual mode)
+
+Generate → confirm pipeline in 4 steps:
+
+| Step | What happens |
 |---|---|
-| **0 — Upload** | Seleccionar imagen de referencia. Llama a `POST /v1/templates/generate` (SSE, 60 s timeout). Luego `GET /session/{id}/image` para la imagen preprocesada. |
-| **1 — Map fields** | `ManualFieldMapper` con overlays clickeables sobre la imagen OCR. El usuario mapea elementos como campo de texto (label + value), anchor (texto fijo) o región de foto. |
-| **2 — Preview** | Vista estática de las regiones mapeadas: azul = label, verde = value, violeta punteado = foto. Panel lateral con campos, anchors y conteo de regiones. |
-| **3 — Confirm** | Formulario de metadatos (document_type, document_name, country_iso, edition). Llama a `POST /v1/templates/confirm`. Navega a `/templates/{id}` si el guardado es exitoso. Maneja 409 (duplicado) y 410 (sesión expirada) con mensajes específicos. |
+| **0 — Upload** | Select a reference image. Calls `POST /v1/templates/generate` (SSE, 60 s timeout), then `GET /session/{id}/image` for the preprocessed image. |
+| **1 — Map fields** | `ManualFieldMapper` with clickable overlays on the OCR image. The user maps elements as: text field (label + value), anchor (fixed document text), or photo region. |
+| **2 — Preview** | Static view of mapped regions: blue = label, green = value, dashed violet = photo. Side panel with fields, anchors, and photo region count. |
+| **3 — Confirm** | Metadata form (document_type, document_name, country_iso, edition). Calls `POST /v1/templates/confirm`. Navigates to `/templates/{id}` on success. Handles 409 (duplicate) and 410 (session expired) with specific messages. |
 
-**Cuenta regresiva de sesión:** el wizard muestra el tiempo restante de la sesión de generate (~1 hora) actualizado cada segundo.
+**Session countdown:** The wizard displays the remaining generate session time (~1 hour), updated every second.
 
 ---
 
-### `/templates/[id]` — Detalle de plantilla
+### `/templates/[id]` — Template Detail
 
-Carga con `GET /v1/templates/{id}`. Muestra:
+Fetches from `GET /v1/templates/{id}`. Displays:
 
 - Metadata: document_type, edition, schema_version, country, country_iso, state, doc_family, mrz_type, created_at
-- Tabla de campos: key | label | type | category
-- Chips de anchors
-- Bloques JSON colapsables: fingerprint, field_rules, qr_config
+- Fields table: key | label | type | category
+- Anchor chips
+- Collapsible JSON blocks: fingerprint, field_rules, qr_config
 
 ---
 
-## Capa API
+## API Layer
 
-Archivo: `src/lib/api.ts`
+File: `src/lib/api.ts`
 
-Toda la comunicación con el backend pasa por este módulo. Usa axios para la mayoría de llamadas y `fetch` nativo para los endpoints SSE.
+All backend communication goes through this module. Uses axios for most calls and native `fetch` for SSE endpoints.
 
-### Configuración
+### Configuration
 
 ```ts
-// Base URL leída de NEXT_PUBLIC_API_BASE_URL, default http://localhost:8000
+// Base URL read from NEXT_PUBLIC_API_BASE_URL, default http://localhost:8000
 const client = axios.create({ baseURL: `${BASE_URL}/v1`, timeout: 30_000 });
 ```
 
 ### `ApiError`
 
-Clase de error personalizada que envuelve todos los errores del backend:
+Custom error class wrapping all backend errors:
 
 ```ts
 class ApiError extends Error {
-  status: number;  // código HTTP, 0 para errores de red/timeout
-  data: unknown;   // body de la respuesta
+  status: number;  // HTTP status code, 0 for network/timeout failures
+  data: unknown;   // raw response body
 }
 ```
 
-Genera mensajes amigables para 404, 409, 410, 413, 422.
+Generates user-friendly messages for 404, 409, 410, 413, 422.
 
-### Funciones exportadas
+### Exported Functions
 
 #### `getHealth(): Promise<string>`
-`GET /v1/health` — Verifica que el backend esté activo. Timeout: 5 s.
+`GET /v1/health` — Checks the backend is alive. Timeout: 5 s.
 
 ---
 
@@ -201,24 +201,24 @@ Genera mensajes amigables para 404, 409, 410, 413, 422.
 
 ```ts
 interface VerifyRequest {
-  documentImages: File[];   // una o más páginas
-  id: string;               // requerido
+  documentImages: File[];   // one or more pages
+  id: string;               // required
   documentType?: string;
   fullName?: string;        // → full_name
   dateOfBirth?: string;     // → date_of_birth (YYYY-MM-DD)
-  gender?: string;          // → gender; el backend hace .strip().upper()
+  gender?: string;          // → gender; backend does .strip().upper()
 }
 ```
 
 ---
 
 #### `getTamperingOverlayUrl(verifyId, filename): string`
-Construye la URL del heatmap: `${BASE_URL}/v1/verify/{id}/image/{filename}`. No hace fetch — retorna la URL para usar en `<img src>`.
+Builds the heatmap URL: `${BASE_URL}/v1/verify/{id}/image/{filename}`. Does not fetch — returns the URL for use in `<img src>`.
 
 ---
 
 #### `listTemplates(params?): Promise<TemplateSummary[]>`
-`GET /v1/templates` — Query params opcionales: `document_type`, `country`.
+`GET /v1/templates` — Optional query params: `document_type`, `country`.
 
 ---
 
@@ -228,41 +228,41 @@ Construye la URL del heatmap: `${BASE_URL}/v1/verify/{id}/image/{filename}`. No 
 ---
 
 #### `generateTemplate(req: GenerateRequest): Promise<GenerateResponse>`
-`POST /v1/templates/generate` — Multipart. Comportamiento según modo:
+`POST /v1/templates/generate` — Multipart. Behavior depends on mode:
 
-| Modo | Protocolo | Timeout |
+| Mode | Protocol | Timeout |
 |---|---|---|
 | `manual` | fetch + SSE | 60 s |
-| `dots` | fetch + SSE | 180 s (cold-start del VLM) |
+| `dots` | fetch + SSE | 180 s (VLM cold-start) |
 | `auto` | axios JSON | 30 s |
 
-**Protocolo SSE:**
-- `data: {...}` → parse acumulado como `GenerateResponse`
-- `data: [DONE]` → retorna el último payload acumulado
-- `event: error\ndata: {...}` → lanza `ApiError`
-- `: keepalive` → ignorado
+**SSE protocol:**
+- `data: {...}` → parsed and accumulated as `GenerateResponse`
+- `data: [DONE]` → returns the last accumulated payload
+- `event: error\ndata: {...}` → throws `ApiError`
+- `: keepalive` → ignored
 
 ---
 
 #### `fetchSessionImage(generateId): Promise<string>`
-`GET /v1/templates/session/{id}/image` — Retorna un Object URL (blob). El caller debe llamar `URL.revokeObjectURL()` cuando termine. Disponible solo durante la ventana generate → confirm.
+`GET /v1/templates/session/{id}/image` — Returns an Object URL (blob). The caller must call `URL.revokeObjectURL()` when done. Available only during the generate → confirm window.
 
 ---
 
 #### `confirmTemplate(body: ConfirmTemplateRequest): Promise<TemplateDetail>`
-`POST /v1/templates/confirm` — JSON. Retorna 201 con el `TemplateDetail` guardado.
+`POST /v1/templates/confirm` — JSON. Returns 201 with the saved `TemplateDetail`.
 
-Errores específicos:
-- `409` — plantilla duplicada (mismo document_type / country_iso / edition)
-- `410` — sesión generate expirada
+Specific errors:
+- `409` — duplicate template (same document_type / country_iso / edition)
+- `410` — generate session expired
 
 ---
 
-## Tipos compartidos
+## Shared Types
 
-Archivo: `src/lib/types.ts`. Espeja los schemas Pydantic del backend.
+File: `src/lib/types.ts`. Mirrors the backend Pydantic schemas.
 
-### Enumeraciones
+### Enumerations
 
 ```ts
 type Verdict      = "ACCEPT" | "REVIEW" | "REJECT"
@@ -300,7 +300,7 @@ interface VerifyExecution {
 }
 ```
 
-`MetadataFileReport`, `TamperingPage` (incluye `overlay_filename?`), `PreprocessorPage`, `OCRPage` son intencionalmente sueltos — se expanden cuando se construya una vista de detalle más granular.
+`MetadataFileReport`, `TamperingPage` (includes `overlay_filename?`), `PreprocessorPage`, and `OCRPage` are intentionally loose (`[key: string]: unknown`) — to be expanded when a more granular detail view is built.
 
 ### Templates
 
@@ -310,8 +310,8 @@ interface TemplateField {
   label: string;
   type: FieldType;
   category?: string | null;
-  label_element_ids?: number[];   // IDs de OCRLine del label
-  value_element_ids?: number[];   // IDs de OCRLine del value
+  label_element_ids?: number[];   // OCRLine IDs used as the label region
+  value_element_ids?: number[];   // OCRLine IDs used as the value region
 }
 
 interface TemplateSummary {
@@ -347,16 +347,16 @@ interface TemplateDetail {
 ### Generate / Confirm
 
 ```ts
-// Línea OCR — modo manual/auto
+// OCR line — manual/auto mode
 interface OCRLine {
   id: number;
   text: string;
-  bbox: number[][];       // 4 puntos [[x,y],...] normalizados [0,1]
+  bbox: number[][];       // 4-point polygon [[x,y],...] normalized to [0,1]
   confidence: number;
-  role?: "image" | null;  // "image" = región de foto detectada por OpenCV
+  role?: "image" | null;  // "image" = photo region detected by OpenCV
 }
 
-// Elemento OCR — modo dots
+// OCR element — dots mode
 interface OCRElement {
   id: number;
   text: string;
@@ -367,17 +367,17 @@ interface OCRElement {
 
 interface GenerateResponse {
   generate_id: string;
-  expires_at: string;               // ISO datetime, TTL ~1 hora
-  image_dims: [number, number];     // [width, height] en píxeles
+  expires_at: string;               // ISO datetime, TTL ~1 hour
+  image_dims: [number, number];     // [width, height] in pixels
   preclass: Preclass;
   qr_config: Record<string, unknown>;
   ocr_lines: OCRLine[];
   mrz_fields?: Record<string, unknown> | null;
   suggestions: FieldSuggestion[];
   anchors_candidates: string[];
-  ocr_elements?: OCRElement[];      // solo modo dots
-  label_elements?: OCRElement[];    // solo modo dots
-  value_elements?: OCRElement[];    // solo modo dots
+  ocr_elements?: OCRElement[];      // dots mode only
+  label_elements?: OCRElement[];    // dots mode only
+  value_elements?: OCRElement[];    // dots mode only
 }
 
 interface ConfirmTemplateRequest {
@@ -390,7 +390,7 @@ interface ConfirmTemplateRequest {
   edition: number;                  // 1900–2100
   doc_family?: string | null;
   mrz_type?: string | null;
-  fields: TemplateField[];          // keys deben ser únicos (422 si hay duplicados)
+  fields: TemplateField[];          // keys must be unique (422 otherwise)
   anchors?: string[];
   image_regions?: { x1: number; y1: number; x2: number; y2: number }[];
   fingerprint?: Record<string, unknown>;
@@ -401,11 +401,11 @@ interface ConfirmTemplateRequest {
 
 ---
 
-## Componentes
+## Components
 
 ### `ManualFieldMapper`
 
-Overlay interactivo para el modo manual. Muestra la imagen preprocesada con todos los `ocr_lines` como regiones clickeables.
+Interactive overlay for manual mode. Renders the preprocessed image with all `ocr_lines` as clickable regions.
 
 ```ts
 interface ManualFieldMapperProps {
@@ -417,41 +417,41 @@ interface ManualFieldMapperProps {
 }
 ```
 
-**Modos de interacción** (toggle en el panel derecho):
+**Interaction modes** (toggle in the right panel):
 
-| Modo | Color | Comportamiento |
+| Mode | Color | Behavior |
 |---|---|---|
-| Map fields | Indigo | Selecciona líneas OCR como label → value para crear un campo |
-| Anchors | Amber | Marca textos fijos del documento (e.g. "PASAPORTE") |
-| Photo regions | Violet | Confirma/descarta regiones de foto (pre-clasificadas con `role === "image"`) |
+| Map fields | Indigo | Select OCR lines as label → value to create a field |
+| Anchors | Amber | Mark fixed document text (e.g. "PASAPORTE") |
+| Photo regions | Violet | Confirm/discard photo regions (pre-classified when `role === "image"`) |
 
-**Reglas de exclusión entre clasificaciones:**
-- Líneas `role === "image"` → solo pueden ser photo regions, no campos ni anchors
-- Líneas en anchors → no pueden ser campo ni photo region
-- Líneas en photo regions → no pueden ser campo ni anchor
-- Líneas ya usadas en un campo → no pueden reclasificarse
+**Exclusion rules between classifications:**
+- Lines with `role === "image"` → photo regions only; cannot be fields or anchors
+- Lines in anchors → cannot be fields or photo regions
+- Lines in photo regions → cannot be fields or anchors
+- Lines already committed to a field → cannot be reclassified
 
-**Visuales de overlay:**
+**Overlay visuals:**
 
-| Estado | Apariencia |
+| State | Appearance |
 |---|---|
-| Photo region confirmada | Borde violeta punteado + fondo violeta |
-| Photo region descartada | Borde azul punteado, baja opacidad |
-| Anchor | Borde amber + fondo amber claro |
-| Label seleccionado | Borde azul + ring |
-| Value seleccionado | Borde verde + ring |
-| Usado en campo | Gris, opaco |
-| Disponible | Borde sutil; hover adapta color al modo activo |
+| Confirmed photo region | Dashed violet border + violet background |
+| Discarded photo region | Dashed blue border, low opacity |
+| Anchor | Amber border + light amber background |
+| Selected label | Blue border + ring |
+| Selected value | Green border + ring |
+| Used in a field | Gray, opaque |
+| Available | Subtle border; hover color adapts to active mode |
 
-Al montar, pre-clasifica automáticamente las líneas con `role === "image"` en photo regions y notifica al padre vía `onImageRegionsChange`.
+On mount, automatically pre-classifies lines with `role === "image"` as photo regions and notifies the parent via `onImageRegionsChange`.
 
 ---
 
 ### `DotsFieldMapper`
 
-Alternativa para el modo `dots`. Usa `OCRElement[]` (bbox `{x1,y1,x2,y2}` directo). Auto-acepta sugerencias con `confidence === "high"` o `source === "llm_pairer"` al montar. Soporta selección de `type` desde el dropdown completo de `FIELD_TYPES`.
+Alternative for `dots` mode. Uses `OCRElement[]` (bbox already as `{x1,y1,x2,y2}`). Auto-accepts suggestions with `confidence === "high"` or `source === "llm_pairer"` on mount. Supports selecting `type` from the full `FIELD_TYPES` dropdown.
 
-> **Nota:** Implementado pero sin página consumidora. El wizard en `/templates/new` usa únicamente el modo `manual`.
+> **Note:** Implemented but has no page consumer yet. The `/templates/new` wizard uses `manual` mode only.
 
 ---
 
@@ -466,7 +466,7 @@ interface VerdictBadgeProps {
 }
 ```
 
-Colores: ACCEPT = verde, REVIEW = naranja, REJECT = rojo.
+Colors: ACCEPT = green, REVIEW = orange, REJECT = red.
 
 ---
 
@@ -475,7 +475,7 @@ Colores: ACCEPT = verde, REVIEW = naranja, REJECT = rojo.
 ```ts
 interface SpinnerProps {
   size?: "sm" | "md" | "lg";   // default "md"
-  label?: string;               // texto visible junto al spinner
+  label?: string;               // visible text next to the spinner
   className?: string;
 }
 ```
@@ -490,7 +490,7 @@ interface SpinnerProps {
 interface ErrorMessageProps {
   title?: string;            // default "Something went wrong"
   message?: React.ReactNode;
-  onRetry?: () => void;      // muestra botón "Retry" si se pasa
+  onRetry?: () => void;      // renders a "Retry" button when provided
   className?: string;
 }
 ```
@@ -513,56 +513,56 @@ interface EmptyStateProps {
 
 ### `TemplateCard`
 
-Recibe `{ template: TemplateSummary }`. Card link a `/templates/{id}`. El color del badge de `document_type` se deriva deterministamente del string.
+Receives `{ template: TemplateSummary }`. Link card to `/templates/{id}`. The `document_type` badge color is derived deterministically from the string.
 
 ---
 
 ### `SuggestionList` / `AddFieldForm`
 
-Implementados, sin página consumidora actualmente. Diseñados para un flujo `auto`/`dots` futuro.
+Both are fully implemented but have no page consumer yet. Built for a future `auto`/`dots` template creation flow.
 
 ---
 
-## Design system
+## Design System
 
-Tailwind v4 sin `tailwind.config.*`. Tokens definidos en `src/app/globals.css`:
+Tailwind v4 with no `tailwind.config.*`. Tokens defined in `src/app/globals.css`:
 
-| Token | Valor | Uso principal |
+| Token | Value | Primary use |
 |---|---|---|
-| `brand-blue` | `#3781c2` | Navbar, botones primarios, overlays de label |
-| `brand-blue-dark` | `#284b63` | Textos activos |
-| `brand-blue-deep` | `#05668d` | Acentos |
-| `brand-purple` | `#662e9b` | Overlays de photo regions |
+| `brand-blue` | `#3781c2` | Navbar, primary buttons, label overlays |
+| `brand-blue-dark` | `#284b63` | Active text |
+| `brand-blue-deep` | `#05668d` | Accents |
+| `brand-purple` | `#662e9b` | Photo region overlays |
 | `brand-teal` | `#3c6e71` | — |
-| `brand-gray` | `#353535` | Texto principal |
-| `brand-silver` | `#7a95ab` | Bordes, texto secundario |
-| `brand-surface` | `#eef4fb` | Fondos de card |
-| `brand-surface-alt` | `#f3f7fc` | Fondos alternativos |
+| `brand-gray` | `#353535` | Primary text |
+| `brand-silver` | `#7a95ab` | Borders, secondary text |
+| `brand-surface` | `#eef4fb` | Card backgrounds |
+| `brand-surface-alt` | `#f3f7fc` | Alternate backgrounds |
 
-Fuentes: **Geist Sans** (interfaz) y **Geist Mono** (código, valores de campos) vía `next/font/google`.
+Fonts: **Geist Sans** (UI) and **Geist Mono** (code, field values) via `next/font/google`.
 
 ---
 
-## Notas de desarrollo
+## Development Notes
 
-### Paso de datos entre `/verify` y `/verify/result`
+### Data passing between `/verify` and `/verify/result`
 
-El resultado se serializa en `sessionStorage["docfraud:verify_result"]` antes de navegar. La página de resultado lo lee al montar y redirige a `/verify` si no existe.
+The verification result is serialized to `sessionStorage["docfraud:verify_result"]` before navigating. The result page reads it on mount and redirects to `/verify` if it is missing.
 
-### Sesión de generate
+### Generate session
 
-`POST /v1/templates/generate` abre una sesión con TTL ~1 hora. La imagen preprocesada y el endpoint de confirm solo están disponibles durante ese window. El wizard muestra un contador regresivo y maneja el error 410 explícitamente.
+`POST /v1/templates/generate` opens a session with a TTL of ~1 hour. The preprocessed image and the confirm endpoint are only available within that window. The wizard displays a live countdown and handles the 410 error explicitly.
 
 ### Object URLs
 
-`fetchSessionImage` retorna un Object URL. El wizard lo revoca con `URL.revokeObjectURL()` al volver al paso 0 o al desmontar el efecto, para evitar memory leaks.
+`fetchSessionImage` returns an Object URL created with `URL.createObjectURL()`. The wizard revokes it with `URL.revokeObjectURL()` when navigating back to step 0 or when the effect unmounts, to prevent memory leaks.
 
-### Coordenadas de bbox
+### Bbox coordinates
 
-Los bboxes de `OCRLine` son polígonos de 4 puntos `[[x,y],...]` normalizados a `[0, 1]`. Los helpers `polyToRect` y `enclosingRect` (en `ManualFieldMapper` y `new/page.tsx`) los convierten a `{x1, y1, x2, y2}` para posicionar overlays con CSS `%`.
+`OCRLine` bboxes are 4-point polygons `[[x,y],...]` normalized to `[0, 1]` relative to the image dimensions. The `polyToRect` and `enclosingRect` helpers (present in both `ManualFieldMapper` and `new/page.tsx`) convert them to `{x1, y1, x2, y2}` for positioning overlays with CSS `%`.
 
-Los `OCRElement` del modo `dots` ya vienen en formato `{x1, y1, x2, y2}` directamente.
+`OCRElement` bboxes in `dots` mode are already in `{x1, y1, x2, y2}` format.
 
-### `image_regions` en el confirm payload
+### `image_regions` in the confirm payload
 
-Se envían como `{ x1, y1, x2, y2 }[]`, derivados de `polyToRect(ocr_line.bbox)` para cada línea con `role === "image"`. El `ManualFieldMapper` pre-clasifica estas líneas al montar y notifica al padre vía `onImageRegionsChange`.
+Sent as `{ x1, y1, x2, y2 }[]`, derived from `polyToRect(ocr_line.bbox)` for each line with `role === "image"`. `ManualFieldMapper` pre-classifies these lines on mount and notifies the parent via `onImageRegionsChange`.
