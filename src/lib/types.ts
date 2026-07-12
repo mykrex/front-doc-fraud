@@ -206,6 +206,16 @@ export interface GenerateRequest {
   expectedFields?: ExpectedField[]; // unused in manual mode; kept for compatibility
 }
 
+// ---------------------------------------------------------------------------
+// Risk threshold configuration
+// ---------------------------------------------------------------------------
+
+export interface RiskThresholds {
+  approve_max: number;
+  review_max: number;
+  edd_max: number;
+}
+
 export interface ConfirmTemplateRequest {
   generate_id?: string | null; // from GenerateResponse — persists the cached image
   document_type: string; // VALIDATED: /^[a-z0-9_]{1,60}$/ (snake_case)

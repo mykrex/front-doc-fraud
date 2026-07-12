@@ -13,6 +13,7 @@ import type {
   ConfirmTemplateRequest,
   GenerateRequest,
   GenerateResponse,
+  RiskThresholds,
   TemplateDetail,
   TemplateListParams,
   TemplateSummary,
@@ -372,6 +373,32 @@ export async function confirmTemplate(
 ): Promise<TemplateDetail> {
   try {
     const res = await client.post<TemplateDetail>("/templates/confirm", body);
+    return res.data;
+  } catch (err) {
+    throw toApiError(err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Risk threshold configuration
+// ---------------------------------------------------------------------------
+
+/** GET /v1/risk/thresholds — read current fraud-detection thresholds. */
+export async function getThresholds(): Promise<RiskThresholds> {
+  try {
+    const res = await client.get<RiskThresholds>("/risk/thresholds");
+    return res.data;
+  } catch (err) {
+    throw toApiError(err);
+  }
+}
+
+/** PUT /v1/risk/thresholds — update thresholds (all three fields required). */
+export async function updateThresholds(
+  body: RiskThresholds,
+): Promise<RiskThresholds> {
+  try {
+    const res = await client.put<RiskThresholds>("/risk/thresholds", body);
     return res.data;
   } catch (err) {
     throw toApiError(err);

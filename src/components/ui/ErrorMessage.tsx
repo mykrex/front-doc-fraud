@@ -17,7 +17,7 @@ export default function ErrorMessage({
   return (
     <div
       role="alert"
-      className={`rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30 ${className}`}
+      className={`rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-550/30 ${className}`}
     >
       <p className="text-sm font-semibold text-red-800 dark:text-red-300">
         {title}

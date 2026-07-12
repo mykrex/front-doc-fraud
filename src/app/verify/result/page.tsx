@@ -445,7 +445,7 @@ function IssueList({
         {items.map((item, i) => (
           <li
             key={i}
-            className="rounded-md bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-400"
+            className="rounded-md bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:bg-red-650/30 dark:text-red-400"
           >
             <span className="font-medium">{item.field}</span>
             <span className="ml-1 text-red-500 dark:text-red-500">—</span>
